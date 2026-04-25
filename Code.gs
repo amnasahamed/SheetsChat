@@ -119,3 +119,10 @@ function logConversation(userMsg, aiResponse, model, latency) {
     latency
   ]);
 }
+
+// --- Embed Code ---
+
+function getEmbedCode() {
+  var url = ScriptApp.getService().getUrl();
+  return '<script src="' + url + '?widget=true"></script>';
+}

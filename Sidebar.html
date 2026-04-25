@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #F9FAFB;
+      color: #111827;
+      font-size: 13px;
+      line-height: 1.5;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* --- Tab Bar --- */
+    .tab-bar {
+      display: flex;
+      background: #FFFFFF;
+      border-bottom: 1px solid #E5E7EB;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6B7280;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .tab-btn:hover {
+      color: #374151;
+    }
+
+    .tab-btn.active {
+      color: #3B82F6;
+      border-bottom-color: #3B82F6;
+    }
+
+    /* --- Tab Content --- */
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* --- Form Elements --- */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+
+    select, input[type="text"], input[type="number"], input[type="password"], textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #D1D5DB;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #FFFFFF;
+      color: #111827;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    select:focus, input[type="text"]:focus, input[type="number"]:focus,
+    input[type="password"]:focus, textarea:focus {
+      outline: none;
+      border-color: #3B82F6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* --- API Key Input --- */
+    .api-key-wrapper {
+      position: relative;
+    }
+
+    .api-key-wrapper input {
+      padding-right: 36px;
+    }
+
+    .eye-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #9CA3AF;
+      padding: 2px;
+      line-height: 1;
+    }
+
+    .eye-toggle:hover {
+      color: #6B7280;
+    }
+
+    /* --- Template Chips --- */
+    .template-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .chip {
+      padding: 4px 10px;
+      border-radius: 14px;
+      border: 1px solid #D1D5DB;
+      background: #FFFFFF;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      color: #374151;
+      font-family: inherit;
+    }
+
+    .chip:hover {
+      background: #EFF6FF;
+      border-color: #3B82F6;
+      color: #3B82F6;
+    }
+
+    /* --- Character Counter --- */
+    .char-counter {
+      text-align: right;
+      font-size: 11px;
+      color: #9CA3AF;
+      margin-top: 2px;
+    }
+
+    /* --- Color Picker --- */
+    .color-swatches {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.1);
+    }
+
+    .color-swatch.selected {
+      border-color: #111827;
+    }
+
+    /* --- Advanced Settings --- */
+    details {
+      margin-bottom: 14px;
+    }
+
+    details summary {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      padding: 8px 0;
+      user-select: none;
+    }
+
+    details summary:hover {
+      color: #3B82F6;
+    }
+
+    .advanced-content {
+      padding: 8px 0 0 0;
+    }
+
+    /* --- Range Slider --- */
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .range-row input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: #E5E7EB;
+      outline: none;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .range-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+    }
+
+    .range-value {
+      font-size: 12px;
+      color: #6B7280;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    /* --- Buttons --- */
+    .btn {
+      padding: 9px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: #3B82F6;
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover {
+      background: #2563EB;
+    }
+
+    .btn-secondary {
+      background: #F3F4F6;
+      color: #374151;
+    }
+
+    .btn-secondary:hover {
+      background: #E5E7EB;
+    }
+
+    .btn-danger {
+      background: #FEE2E2;
+      color: #DC2626;
+    }
+
+    .btn-danger:hover {
+      background: #FECACA;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* --- Status Message --- */
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .status.success {
+      background: #D1FAE5;
+      color: #065F46;
+      display: block;
+    }
+
+    .status.error {
+      background: #FEE2E2;
+      color: #991B1B;
+      display: block;
+    }
+
+    /* --- Chat Tab --- */
+    .chat-header {
+      font-size: 12px;
+      color: #6B7280;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #E5E7EB;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .chat-bubble {
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 12px;
+      word-wrap: break-word;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chat-bubble.user {
+      align-self: flex-end;
+      background: #3B82F6;
+      color: #FFFFFF;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-bubble.bot {
+      align-self: flex-start;
+      background: #F3F4F6;
+      color: #111827;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble.error {
+      align-self: center;
+      background: #FEE2E2;
+      color: #991B1B;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px solid #E5E7EB;
+      flex-shrink: 0;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+    }
+
+    .chat-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+
+    /* --- Typing Indicator --- */
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      padding: 10px 14px;
+      background: #F3F4F6;
+      border-radius: 12px;
+      border-bottom-left-radius: 4px;
+    }
+
+    .typing-indicator.visible {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #9CA3AF;
+      animation: typingBounce 1.2s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    /* --- Deploy Tab --- */
+    .deploy-section {
+      margin-bottom: 16px;
+    }
+
+    .deploy-section h3 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    .embed-code-block {
+      background: #1F2937;
+      color: #E5E7EB;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      word-break: break-all;
+      white-space: pre-wrap;
+      max-height: 100px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      background: #374151;
+      color: #D1D5DB;
+      border: 1px solid #4B5563;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: #4B5563;
+    }
+
+    .embed-wrapper {
+      position: relative;
+    }
+
+    .deploy-url {
+      font-size: 11px;
+      color: #6B7280;
+      word-break: break-all;
+      margin-top: 6px;
+    }
+
+    /* --- Mini Preview --- */
+    .mini-preview {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .preview-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .preview-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .preview-chat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .preview-msg {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      max-width: 75%;
+    }
+
+    .preview-msg.user {
+      align-self: flex-end;
+      color: #FFFFFF;
+      border-bottom-right-radius: 2px;
+    }
+
+    .preview-msg.bot {
+      align-self: flex-start;
+      background: #F3F4F6;
+      color: #374151;
+      border-bottom-left-radius: 2px;
+    }
+
+    /* --- Scrollbar --- */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #D1D5DB;
+      border-radius: 2px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9CA3AF;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
+    <button class="tab-btn" onclick="switchTab('chat')">Test Chat</button>
+    <button class="tab-btn" onclick="switchTab('deploy')">Deploy</button>
+  </div>
+
+  <!-- ==================== SETUP TAB ==================== -->
+  <div id="tab-setup" class="tab-content active">
+
+    <div class="form-group">
+      <label for="provider">Provider</label>
+      <select id="provider" onchange="onProviderChange()">
+        <option value="">Loading...</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="modelGroup">
+      <label for="model">Model</label>
+      <select id="model">
+        <option value="">Select provider first</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="customUrlGroup" style="display:none;">
+      <label for="customBaseUrl">Custom Base URL</label>
+      <input type="text" id="customBaseUrl" placeholder="https://api.example.com/v1/chat/completions">
+    </div>
+
+    <div class="form-group" id="customModelGroup" style="display:none;">
+      <label for="customModel">Custom Model Name</label>
+      <input type="text" id="customModel" placeholder="my-model-name">
+    </div>
+
+    <div class="form-group">
+      <label for="apiKey">API Key</label>
+      <div class="api-key-wrapper">
+        <input type="password" id="apiKey" placeholder="sk-...">
+        <button class="eye-toggle" onclick="toggleApiKey()" title="Show/Hide API Key">&#128065;</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>System Prompt</label>
+      <div class="template-chips">
+        <button class="chip" onclick="applyTemplate('customer-support')">Customer Support</button>
+        <button class="chip" onclick="applyTemplate('faq-bot')">FAQ Bot</button>
+        <button class="chip" onclick="applyTemplate('personal-assistant')">Personal Assistant</button>
+      </div>
+      <textarea id="systemPrompt" rows="3" oninput="updateCharCounter()"></textarea>
+      <div class="char-counter" id="charCounter">0 characters</div>
+    </div>
+
+    <div class="form-group">
+      <label for="botName">Bot Name</label>
+      <input type="text" id="botName" value="Assistant">
+    </div>
+
+    <div class="form-group">
+      <label>Bot Color</label>
+      <div class="color-swatches">
+        <div class="color-swatch selected" style="background:#3B82F6" data-color="#3B82F6" onclick="selectColor(this)"></div>
+        <div class="color-swatch" style="background:#10B981" data-color="#10B981" onclick="selectColor(this)"></div>
+        <div class="color-swatch" style="background:#8B5CF6" data-color="#8B5CF6" onclick="selectColor(this)"></div>
+        <div class="color-swatch" style="background:#EF4444" data-color="#EF4444" onclick="selectColor(this)"></div>
+        <div class="color-swatch" style="background:#F59E0B" data-color="#F59E0B" onclick="selectColor(this)"></div>
+        <div class="color-swatch" style="background:#14B8A6" data-color="#14B8A6" onclick="selectColor(this)"></div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Advanced Settings</summary>
+      <div class="advanced-content">
+        <div class="form-group">
+          <label>Temperature</label>
+          <div class="range-row">
+            <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('tempVal').textContent=this.value">
+            <span class="range-value" id="tempVal">0.7</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="maxTokens">Max Tokens</label>
+          <input type="number" id="maxTokens" value="1024" min="1" max="128000">
+        </div>
+        <div class="form-group">
+          <label>Top P</label>
+          <div class="range-row">
+            <input type="range" id="topP" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('topPVal').textContent=this.value">
+            <span class="range-value" id="topPVal">1</span>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <button class="btn btn-primary btn-block" onclick="saveConfig()">Save Config</button>
+    <div id="saveStatus" class="status"></div>
+  </div>
+
+  <!-- ==================== TEST CHAT TAB ==================== -->
+  <div id="tab-chat" class="tab-content">
+    <div class="chat-header" id="chatHeader">Model: --</div>
+
+    <div class="chat-messages" id="chatMessages">
+      <!-- messages injected here -->
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+    </div>
+
+    <div class="chat-actions">
+      <button class="btn btn-secondary" onclick="clearChat()" style="flex:1">Clear Chat</button>
+      <button class="btn btn-danger" onclick="resetAndReload()" style="flex:1">Reset to Defaults</button>
+    </div>
+  </div>
+
+  <!-- ==================== DEPLOY TAB ==================== -->
+  <div id="tab-deploy" class="tab-content">
+
+    <div class="deploy-section">
+      <button class="btn btn-primary btn-block" onclick="generateEmbed()">Generate Embed Code</button>
+    </div>
+
+    <div class="deploy-section" id="embedSection" style="display:none;">
+      <h3>Embed Code</h3>
+      <div class="embed-wrapper">
+        <div class="embed-code-block" id="embedCode"></div>
+        <button class="copy-btn" onclick="copyEmbed()">Copy</button>
+      </div>
+      <div class="deploy-url" id="deployUrl"></div>
+    </div>
+
+    <div class="deploy-section">
+      <h3>Widget Preview</h3>
+      <div class="mini-preview" id="miniPreview">
+        <div class="preview-header">
+          <div class="preview-dot" id="previewDot" style="background:#3B82F6"></div>
+          <span class="preview-name" id="previewName">Assistant</span>
+        </div>
+        <div class="preview-chat">
+          <div class="preview-msg user" id="previewUserMsg" style="background:#3B82F6">Hi there!</div>
+          <div class="preview-msg bot">Hello! How can I help you today?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    // --- Global State ---
+    var providersData = {};
+    var selectedColor = '#3B82F6';
+    var chatHistory = [];
+    var currentEmbedCode = '';
+
+    var TEMPLATES = {
+      'customer-support': 'You are a helpful customer support agent. Be polite, concise, and helpful. Answer questions about products and services.',
+      'faq-bot': 'You are a FAQ bot. Answer common questions based on the provided information. If unsure, say you don\'t know.',
+      'personal-assistant': 'You are a personal assistant. Help with scheduling, reminders, and general questions. Be friendly and efficient.'
+    };
+
+    // --- Init ---
+    google.script.run.withSuccessHandler(function(providers) {
+      providersData = providers || {};
+      var sel = document.getElementById('provider');
+      sel.innerHTML = '';
+      var keys = Object.keys(providersData);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = providersData[key].name;
+        sel.appendChild(opt);
+      }
+      // Load config after providers are ready
+      google.script.run.withSuccessHandler(populateForm).getConfig();
+    }).getProviders();
+
+    // --- Tab Switching ---
+    function switchTab(tab) {
+      var tabs = ['setup', 'chat', 'deploy'];
+      for (var i = 0; i < tabs.length; i++) {
+        var btn = document.querySelector('.tab-btn:nth-child(' + (i + 1) + ')');
+        var content = document.getElementById('tab-' + tabs[i]);
+        if (tabs[i] === tab) {
+          btn.classList.add('active');
+          content.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+          content.classList.remove('active');
+        }
+      }
+      if (tab === 'chat') {
+        updateChatHeader();
+      }
+      if (tab === 'deploy') {
+        updatePreview();
+      }
+    }
+
+    // --- Populate Form from Config ---
+    function populateForm(config) {
+      if (!config) return;
+
+      document.getElementById('provider').value = config.provider || 'openai';
+      onProviderChange();
+
+      if (config.provider === 'custom') {
+        document.getElementById('customModel').value = config.model || '';
+      } else {
+        document.getElementById('model').value = config.model || '';
+      }
+
+      document.getElementById('customBaseUrl').value = config.customBaseUrl || '';
+      document.getElementById('apiKey').value = config.apiKey || '';
+      document.getElementById('systemPrompt').value = config.systemPrompt || '';
+      document.getElementById('botName').value = config.botName || 'Assistant';
+      document.getElementById('temperature').value = config.temperature || 0.7;
+      document.getElementById('tempVal').textContent = config.temperature || 0.7;
+      document.getElementById('maxTokens').value = config.maxTokens || 1024;
+      document.getElementById('topP').value = config.topP || 1;
+      document.getElementById('topPVal').textContent = config.topP || 1;
+
+      // Set color
+      selectedColor = config.botColor || '#3B82F6';
+      var swatches = document.querySelectorAll('.color-swatch');
+      for (var i = 0; i < swatches.length; i++) {
+        swatches[i].classList.remove('selected');
+        if (swatches[i].getAttribute('data-color') === selectedColor) {
+          swatches[i].classList.add('selected');
+        }
+      }
+
+      updateCharCounter();
+      updateChatHeader();
+      updatePreview();
+    }
+
+    // --- Provider Change ---
+    function onProviderChange() {
+      var providerKey = document.getElementById('provider').value;
+      var modelGroup = document.getElementById('modelGroup');
+      var customUrlGroup = document.getElementById('customUrlGroup');
+      var customModelGroup = document.getElementById('customModelGroup');
+
+      if (providerKey === 'custom') {
+        modelGroup.style.display = 'none';
+        customUrlGroup.style.display = 'block';
+        customModelGroup.style.display = 'block';
+        return;
+      }
+
+      modelGroup.style.display = 'block';
+      customUrlGroup.style.display = 'none';
+      customModelGroup.style.display = 'none';
+
+      var sel = document.getElementById('model');
+      sel.innerHTML = '';
+
+      var info = providersData[providerKey];
+      if (info && info.models) {
+        for (var i = 0; i < info.models.length; i++) {
+          var opt = document.createElement('option');
+          opt.value = info.models[i];
+          opt.textContent = info.models[i];
+          sel.appendChild(opt);
+        }
+      }
+    }
+
+    // --- Template Chips ---
+    function applyTemplate(key) {
+      var text = TEMPLATES[key] || '';
+      document.getElementById('systemPrompt').value = text;
+      updateCharCounter();
+    }
+
+    // --- Character Counter ---
+    function updateCharCounter() {
+      var val = document.getElementById('systemPrompt').value;
+      document.getElementById('charCounter').textContent = val.length + ' characters';
+    }
+
+    // --- Color Picker ---
+    function selectColor(el) {
+      var swatches = document.querySelectorAll('.color-swatch');
+      for (var i = 0; i < swatches.length; i++) {
+        swatches[i].classList.remove('selected');
+      }
+      el.classList.add('selected');
+      selectedColor = el.getAttribute('data-color');
+      updatePreview();
+    }
+
+    // --- API Key Toggle ---
+    function toggleApiKey() {
+      var input = document.getElementById('apiKey');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // --- Save Config ---
+    function saveConfig() {
+      var statusEl = document.getElementById('saveStatus');
+      statusEl.className = 'status';
+      statusEl.textContent = '';
+
+      var providerKey = document.getElementById('provider').value;
+      var modelVal;
+      if (providerKey === 'custom') {
+        modelVal = document.getElementById('customModel').value;
+      } else {
+        modelVal = document.getElementById('model').value;
+      }
+
+      var config = {
+        provider: providerKey,
+        model: modelVal,
+        apiKey: document.getElementById('apiKey').value,
+        customBaseUrl: document.getElementById('customBaseUrl').value,
+        systemPrompt: document.getElementById('systemPrompt').value,
+        botName: document.getElementById('botName').value,
+        botColor: selectedColor,
+        temperature: document.getElementById('temperature').value,
+        maxTokens: document.getElementById('maxTokens').value,
+        topP: document.getElementById('topP').value
+      };
+
+      google.script.run
+        .withSuccessHandler(function() {
+          statusEl.className = 'status success';
+          statusEl.textContent = 'Config saved successfully!';
+          updateChatHeader();
+          updatePreview();
+        })
+        .withFailureHandler(function(err) {
+          statusEl.className = 'status error';
+          statusEl.textContent = 'Error: ' + (err.message || 'Failed to save');
+        })
+        .saveConfig(config);
+    }
+
+    // --- Chat ---
+    function updateChatHeader() {
+      var providerKey = document.getElementById('provider').value;
+      var modelVal;
+      if (providerKey === 'custom') {
+        modelVal = document.getElementById('customModel').value;
+      } else {
+        modelVal = document.getElementById('model').value;
+      }
+      var info = providersData[providerKey];
+      var providerName = info ? info.name : providerKey;
+      document.getElementById('chatHeader').textContent = 'Model: ' + (modelVal || '--') + ' (' + providerName + ')';
+    }
+
+    function sendMessage() {
+      var input = document.getElementById('chatInput');
+      var msg = input.value.trim();
+      if (!msg) return;
+
+      appendMessage('user', msg);
+      input.value = '';
+      chatHistory.push({ role: 'user', content: msg });
+
+      showTyping();
+
+      var historySnapshot = chatHistory.slice(0, -1);
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          hideTyping();
+          if (result.error) {
+            appendMessage('error', result.error);
+          } else {
+            appendMessage('bot', result.response);
+            chatHistory.push({ role: 'assistant', content: result.response });
+          }
+        })
+        .withFailureHandler(function(err) {
+          hideTyping();
+          appendMessage('error', 'Request failed: ' + (err.message || 'Unknown error'));
+        })
+        .handleChat(msg, historySnapshot);
+    }
+
+    function appendMessage(type, text) {
+      var container = document.getElementById('chatMessages');
+      var div = document.createElement('div');
+      div.className = 'chat-bubble ' + type;
+      div.textContent = text;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function showTyping() {
+      var el = document.getElementById('typingIndicator');
+      el.classList.add('visible');
+      var container = document.getElementById('chatMessages');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function hideTyping() {
+      var el = document.getElementById('typingIndicator');
+      el.classList.remove('visible');
+    }
+
+    function clearChat() {
+      document.getElementById('chatMessages').innerHTML = '';
+      chatHistory = [];
+    }
+
+    function resetAndReload() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result && result.config) {
+            populateForm(result.config);
+          }
+          clearChat();
+        })
+        .resetConfig();
+    }
+
+    // --- Deploy ---
+    function generateEmbed() {
+      google.script.run
+        .withSuccessHandler(function(code) {
+          currentEmbedCode = code;
+          document.getElementById('embedCode').textContent = code;
+          document.getElementById('embedSection').style.display = 'block';
+
+          // Extract URL for display
+          var urlMatch = code.match(/src="([^"]+)"/);
+          if (urlMatch && urlMatch[1]) {
+            document.getElementById('deployUrl').textContent = 'URL: ' + urlMatch[1];
+          }
+        })
+        .withFailureHandler(function(err) {
+          document.getElementById('embedCode').textContent = 'Error: ' + (err.message || 'Failed to generate');
+          document.getElementById('embedSection').style.display = 'block';
+        })
+        .getEmbedCode();
+    }
+
+    function copyEmbed() {
+      if (!currentEmbedCode) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentEmbedCode);
+      } else {
+        // Fallback for older browsers
+        var ta = document.createElement('textarea');
+        ta.value = currentEmbedCode;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      var btn = document.querySelector('.copy-btn');
+      var originalText = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function() {
+        btn.textContent = originalText;
+      }, 1500);
+    }
+
+    // --- Preview ---
+    function updatePreview() {
+      var botName = document.getElementById('botName').value || 'Assistant';
+      document.getElementById('previewName').textContent = botName;
+      document.getElementById('previewDot').style.background = selectedColor;
+      document.getElementById('previewUserMsg').style.background = selectedColor;
+    }
+  </script>
+
+</body>
+</html>
