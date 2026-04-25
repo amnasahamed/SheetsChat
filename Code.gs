@@ -71,3 +71,51 @@ function ensureConfigSheet() {
   }
   return sheet;
 }
+
+// --- Chat Handler ---
+
+function handleChat(message, history) {
+  var config = getConfig();
+  if (!config.apiKey) {
+    return { error: 'Please set your API key in the Setup tab.' };
+  }
+
+  var startTime = new Date().getTime();
+  try {
+    var result = callAI(config, message, history);
+    var latency = new Date().getTime() - startTime;
+    logConversation(message, result.response, result.model, latency);
+    return { response: result.response };
+  } catch (e) {
+    return { error: 'AI Error: ' + e.message };
+  }
+}
+
+// --- Logging ---
+
+function ensureLogsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('ChatbotLogs');
+  if (!sheet) {
+    sheet = ss.insertSheet('ChatbotLogs');
+    sheet.hideSheet();
+    var headers = ['Timestamp', 'Session ID', 'User Message', 'AI Response', 'Model', 'Latency (ms)'];
+    sheet.getRange(1, 1, 1, 6).setValues([headers]);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function logConversation(userMsg, aiResponse, model, latency) {
+  var sheet = ensureLogsSheet();
+  var sessionId = Utilities.getUuid().substring(0, 8);
+  sheet.appendRow([
+    new Date().toISOString(),
+    sessionId,
+    userMsg,
+    aiResponse,
+    model,
+    latency
+  ]);
+}
