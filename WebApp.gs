@@ -22,15 +22,48 @@ function doGet(e) {
 
 function doPost(e) {
   try {
+    // Rate limit by session (use IP-like identifier from postData)
+    var sessionId = 'anon';
+    try {
+      var preBody = JSON.parse(e.postData.contents);
+      sessionId = preBody.sessionId || preBody.session_id || 'anon';
+    } catch (err) { /* use default */ }
+
+    if (!checkRateLimit(sessionId)) {
+      return corsResponse({ error: 'Rate limited. Please wait a moment and try again.' });
+    }
+
     var body = JSON.parse(e.postData.contents);
-    var message = body.message;
-    var history = body.history || [];
 
-    var result = handleChat(message, history);
+    // Route: lead capture
+    if (body.type === 'lead') {
+      var result = saveLead(body);
+      return corsResponse(result);
+    }
 
-    return corsResponse(result);
+    // Route: chat message — validate inputs
+    if (!body.message || typeof body.message !== 'string') {
+      return corsResponse({ error: 'Message is required.' });
+    }
+    if (body.message.length > 4000) {
+      return corsResponse({ error: 'Message too long (max 4000 characters).' });
+    }
+
+    // Sanitize history
+    var history = [];
+    if (body.history && Array.isArray(body.history)) {
+      for (var i = 0; i < Math.min(body.history.length, 20); i++) {
+        var h = body.history[i];
+        if (h && typeof h.content === 'string' && h.content.length <= 2000) {
+          history.push({ role: String(h.role), content: h.content });
+        }
+      }
+    }
+
+    var chatResult = handleChat(body.message, history);
+    return corsResponse(chatResult);
   } catch (err) {
-    return corsResponse({ error: err.message });
+    return corsResponse({ error: err.message || 'Server error.' });
   }
 }
 
@@ -44,10 +77,14 @@ function serveWidget() {
 }
 
 function buildWidgetJS(config) {
+  var suggestions = (config.suggestedQuestions || '').split(',').filter(function(s){return s.trim();});
   var c = {
     botName: config.botName || 'Assistant',
     botColor: config.botColor || '#3B82F6',
-    endpoint: ScriptApp.getService().getUrl()
+    endpoint: ScriptApp.getService().getUrl(),
+    welcomeMessage: config.welcomeMessage || '',
+    suggestions: suggestions,
+    leadCapture: config.leadCaptureEnabled === 'true'
   };
   var json = JSON.stringify(c);
 
@@ -89,6 +126,19 @@ function buildWidgetJS(config) {
     '.cb-dark #cb-input{background:#374151;color:#E5E7EB;border-color:#4B5563;}',
     '.cb-dark #cb-input:focus{border-color:' + c.botColor + ';}',
     '.cb-dark #cb-header{background:' + c.botColor + ';}',
+    '#cb-suggestions{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 12px;}',
+    '.cb-sug{padding:6px 12px;border-radius:16px;border:1px solid #D1D5DB;background:#fff;font-size:12px;cursor:pointer;color:#374151;font-family:system-ui;transition:background 0.2s,border-color 0.2s;}',
+    '.cb-sug:hover{background:#EFF6FF;border-color:' + c.botColor + ';color:' + c.botColor + ';}',
+    '.cb-dark .cb-sug{background:#374151;color:#E5E7EB;border-color:#4B5563;}',
+    '.cb-dark .cb-sug:hover{border-color:' + c.botColor + ';}',
+    '#cb-lead-form{padding:24px 16px;display:flex;flex-direction:column;gap:10px;flex:1;justify-content:center;}',
+    '#cb-lead-form div{font-size:14px;font-weight:600;color:#374151;text-align:center;}',
+    '#cb-lead-form input{width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:14px;font-family:system-ui;outline:none;}',
+    '#cb-lead-form input:focus{border-color:' + c.botColor + ';}',
+    '#cb-lead-form button{width:100%;padding:10px;border:none;border-radius:8px;background:' + c.botColor + ';color:white;font-size:14px;font-weight:600;cursor:pointer;font-family:system-ui;}',
+    '#cb-lead-form button:hover{opacity:0.9;}',
+    '.cb-dark #cb-lead-form div{color:#E5E7EB;}',
+    '.cb-dark #cb-lead-form input{background:#374151;color:#E5E7EB;border-color:#4B5563;}',
     '@media(prefers-reduced-motion:reduce){.cb-msg,.cb-dot,#cb-panel{animation:none!important;transition:none!important;}}'
   ].join('\n');
 
@@ -135,26 +185,44 @@ function buildWidgetJS(config) {
     'inpArea.appendChild(inp);inpArea.appendChild(sendBtn);' +
 
     // Assemble panel
-    'panel.appendChild(hdr);panel.appendChild(msgs);panel.appendChild(typ);panel.appendChild(inpArea);' +
+    'panel.appendChild(hdr);panel.appendChild(msgs);' +
+    'var sugDiv=D.createElement("div");sugDiv.id="cb-suggestions";panel.appendChild(sugDiv);' +
+    // Lead capture form
+    'var lf=D.createElement("div");lf.id="cb-lead-form";lf.style.display="none";' +
+    'lf.innerHTML=\'<div>Before we chat, tell us about yourself</div><input id="cb-lead-name" placeholder="Your name"><input id="cb-lead-email" placeholder="Your email" type="email"><button onclick="">Start Chat</button>\';' +
+    'panel.appendChild(lf);' +
+    'panel.appendChild(typ);panel.appendChild(inpArea);' +
 
     // Assemble root
     'root.appendChild(bubble);root.appendChild(panel);' +
     'D.body.appendChild(root);' +
 
     // State
-    'var isOpen=false;var H=[];var sending=false;' +
+    'var isOpen=false;var H=[];var sending=false;var leadDone=false;' +
     'try{H=JSON.parse(sessionStorage.getItem("cb_h")||"[]");}catch(e){}' +
+    'try{leadDone=!!sessionStorage.getItem("cb_lead");}catch(e){}' +
 
     // Restore history
     'function restoreHistory(){' +
     'msgs.innerHTML="";' +
+    'var sugEl=D.getElementById("cb-suggestions");' +
+    'if(H.length===0){' +
+    'if(C.welcomeMessage){appendMsg("bot",C.welcomeMessage);}' +
+    'if(C.suggestions&&C.suggestions.length>0&&sugEl){' +
+    'sugEl.innerHTML="";' +
+    'for(var s=0;s<C.suggestions.length;s++){' +
+    'var sb=D.createElement("button");sb.className="cb-sug";sb.textContent=C.suggestions[s];' +
+    'sb.addEventListener("click",(function(t){return function(){inp.value=t;send();if(sugEl)sugEl.style.display="none";};})(C.suggestions[s]));' +
+    'sugEl.appendChild(sb);}sugEl.style.display="flex";}' +
+    '}else{' +
+    'if(sugEl)sugEl.style.display="none";' +
     'for(var i=0;i<H.length;i++){' +
     'var m=H[i];' +
     'var b=D.createElement("div");' +
     'b.className=m.role==="user"?"cb-msg cb-user":"cb-msg cb-bot";' +
     'b.textContent=m.content;' +
     'msgs.appendChild(b);' +
-    '}' +
+    '}}' +
     'scrollDown();' +
     '}' +
 
@@ -176,12 +244,28 @@ function buildWidgetJS(config) {
     'if(isOpen){' +
     'bubble.style.display="none";' +
     'panel.style.display="flex";' +
-    'restoreHistory();' +
+    'if(C.leadCapture&&!leadDone){showLeadForm();}' +
+    'else{restoreHistory();}' +
     'inp.focus();' +
     '}else{' +
     'panel.style.display="none";' +
     'bubble.style.display="flex";' +
     '}' +
+    '}' +
+
+    // Lead form logic
+    'function showLeadForm(){' +
+    'lf.style.display="flex";msgs.style.display="none";sugDiv.style.display="none";typ.style.display="none";inpArea.style.display="none";' +
+    'var lfBtn=lf.querySelector("button");' +
+    'lfBtn.onclick=function(){' +
+    'var n=D.getElementById("cb-lead-name").value.trim();' +
+    'var em=D.getElementById("cb-lead-email").value.trim();' +
+    'if(!n||!em){alert("Please enter name and email.");return;}' +
+    'fetch(C.endpoint,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({type:"lead",name:n,email:em,source:"widget"})});' +
+    'leadDone=true;try{sessionStorage.setItem("cb_lead","1");}catch(e){}' +
+    'lf.style.display="none";msgs.style.display="flex";inpArea.style.display="flex";' +
+    'restoreHistory();' +
+    '};' +
     '}' +
 
     // Send message
@@ -221,4 +305,22 @@ function buildWidgetJS(config) {
     'inp.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});' +
 
     '})();';
+}
+
+/**
+ * Rate limiting using CacheService.
+ * Returns true if request is allowed, false if rate limited.
+ * Limit: 30 requests per sessionId per 60 seconds.
+ */
+function checkRateLimit(sessionId) {
+  if (!sessionId) sessionId = 'anonymous';
+  var cacheKey = 'rl_' + sessionId;
+  var cache = CacheService.getScriptCache();
+  var countStr = cache.get(cacheKey);
+  var count = countStr ? parseInt(countStr, 10) : 0;
+  if (count >= 30) {
+    return false;
+  }
+  cache.put(cacheKey, String(count + 1), 60);
+  return true;
 }
