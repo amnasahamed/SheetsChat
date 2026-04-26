@@ -268,6 +268,11 @@
       background: #2563EB;
     }
 
+    .btn-primary:disabled {
+      background: #93C5FD;
+      cursor: not-allowed;
+    }
+
     .btn-secondary {
       background: #F3F4F6;
       color: #374151;
@@ -586,7 +591,7 @@
       <label for="apiKey">API Key</label>
       <div class="api-key-wrapper">
         <input type="password" id="apiKey" placeholder="sk-...">
-        <button class="eye-toggle" onclick="toggleApiKey()" title="Show/Hide API Key">&#128065;</button>
+        <button class="eye-toggle" onclick="toggleApiKey()" title="Show/Hide API Key" aria-label="Toggle API key visibility">&#128065;</button>
       </div>
     </div>
 
@@ -642,7 +647,7 @@
       </div>
     </details>
 
-    <button class="btn btn-primary btn-block" onclick="saveConfig()">Save Config</button>
+    <button class="btn btn-primary btn-block" id="saveBtn" onclick="saveConfig()">Save Config</button>
     <div id="saveStatus" class="status"></div>
   </div>
 
@@ -862,6 +867,10 @@
       statusEl.className = 'status';
       statusEl.textContent = '';
 
+      var saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
       var providerKey = document.getElementById('provider').value;
       var modelVal;
       if (providerKey === 'custom') {
@@ -887,12 +896,16 @@
         .withSuccessHandler(function() {
           statusEl.className = 'status success';
           statusEl.textContent = 'Config saved successfully!';
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Config';
           updateChatHeader();
           updatePreview();
         })
         .withFailureHandler(function(err) {
           statusEl.className = 'status error';
           statusEl.textContent = 'Error: ' + (err.message || 'Failed to save');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Config';
         })
         .saveConfig(config);
     }

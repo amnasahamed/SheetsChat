@@ -88,7 +88,8 @@ function buildWidgetJS(config) {
     '.cb-dark #cb-input-area{background:#1F2937;border-top-color:#374151;}',
     '.cb-dark #cb-input{background:#374151;color:#E5E7EB;border-color:#4B5563;}',
     '.cb-dark #cb-input:focus{border-color:' + c.botColor + ';}',
-    '.cb-dark #cb-header{background:' + c.botColor + ';}'
+    '.cb-dark #cb-header{background:' + c.botColor + ';}',
+    '@media(prefers-reduced-motion:reduce){.cb-msg,.cb-dot,#cb-panel{animation:none!important;transition:none!important;}}'
   ].join('\n');
 
   return '(function(){' +
@@ -107,7 +108,7 @@ function buildWidgetJS(config) {
     'if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches){root.classList.add("cb-dark");}' +
 
     // Create bubble
-    'var bubble=D.createElement("button");bubble.id="cb-bubble";' +
+    'var bubble=D.createElement("button");bubble.id="cb-bubble";bubble.setAttribute("aria-label","Open chat");' +
     'bubble.innerHTML=\'<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>\';' +
 
     // Create panel
@@ -116,7 +117,7 @@ function buildWidgetJS(config) {
     // Header
     'var hdr=D.createElement("div");hdr.id="cb-header";' +
     'var nm=D.createElement("span");nm.textContent=C.botName;' +
-    'var cls=D.createElement("button");cls.id="cb-close";cls.innerHTML="\\u2715";' +
+    'var cls=D.createElement("button");cls.id="cb-close";cls.innerHTML="\\u2715";cls.setAttribute("aria-label","Close chat");' +
     'hdr.appendChild(nm);hdr.appendChild(cls);' +
 
     // Messages
@@ -129,7 +130,7 @@ function buildWidgetJS(config) {
     // Input area
     'var inpArea=D.createElement("div");inpArea.id="cb-input-area";' +
     'var inp=D.createElement("input");inp.id="cb-input";inp.type="text";inp.placeholder="Type a message...";' +
-    'var sendBtn=D.createElement("button");sendBtn.id="cb-send";' +
+    'var sendBtn=D.createElement("button");sendBtn.id="cb-send";sendBtn.setAttribute("aria-label","Send message");' +
     'sendBtn.innerHTML=\'<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>\';' +
     'inpArea.appendChild(inp);inpArea.appendChild(sendBtn);' +
 
