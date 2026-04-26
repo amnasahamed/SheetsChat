@@ -2,6 +2,16 @@ function onOpen() {
   ensureConfigSheet();
   ensureKnowledgeSheet();
   ensureLeadsSheet();
+
+  // Migrate API key from DocumentProperties to ScriptProperties (one-time)
+  var docProps = PropertiesService.getDocumentProperties();
+  var scriptProps = PropertiesService.getScriptProperties();
+  var oldKey = docProps.getProperty('apiKey');
+  if (oldKey && !scriptProps.getProperty('apiKey')) {
+    scriptProps.setProperty('apiKey', oldKey);
+    docProps.deleteProperty('apiKey');
+  }
+
   SpreadsheetApp.getUi()
     .createMenu('Chatbot Builder')
     .addItem('Open', 'openSidebar')
@@ -33,17 +43,32 @@ var CONFIG_DEFAULTS = {
 
 function getConfig() {
   var props = PropertiesService.getDocumentProperties();
+  var scriptProps = PropertiesService.getScriptProperties();
   var config = {};
   for (var key in CONFIG_DEFAULTS) {
     var val = props.getProperty(key);
     config[key] = val !== null ? val : CONFIG_DEFAULTS[key];
+  }
+  // API key comes from ScriptProperties (more secure)
+  var apiKey = scriptProps.getProperty('apiKey');
+  if (apiKey) {
+    config.apiKey = apiKey;
   }
   return config;
 }
 
 function saveConfig(config) {
   var props = PropertiesService.getDocumentProperties();
+  var scriptProps = PropertiesService.getScriptProperties();
+
+  // Store API key in ScriptProperties (not accessible by sheet users)
+  if (config.apiKey !== undefined && config.apiKey !== null) {
+    scriptProps.setProperty('apiKey', String(config.apiKey));
+  }
+
+  // Store everything else in DocumentProperties
   for (var key in config) {
+    if (key === 'apiKey') continue;
     if (config[key] !== undefined && config[key] !== null) {
       props.setProperty(key, String(config[key]));
     }
@@ -53,7 +78,9 @@ function saveConfig(config) {
 
 function resetConfig() {
   var props = PropertiesService.getDocumentProperties();
+  var scriptProps = PropertiesService.getScriptProperties();
   props.deleteAllProperties();
+  scriptProps.deleteProperty('apiKey');
   return { success: true, config: CONFIG_DEFAULTS };
 }
 

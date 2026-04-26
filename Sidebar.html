@@ -2,6 +2,7 @@
 <html>
 <head>
   <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * {
       box-sizing: border-box;
@@ -10,9 +11,9 @@
     }
 
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #F9FAFB;
-      color: #111827;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #F8FAFC;
+      color: #0F172A;
       font-size: 13px;
       line-height: 1.5;
       width: 100%;
@@ -25,32 +26,34 @@
     /* --- Tab Bar --- */
     .tab-bar {
       display: flex;
-      background: #FFFFFF;
-      border-bottom: 1px solid #E5E7EB;
+      background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
       flex-shrink: 0;
+      padding: 0 4px;
     }
 
     .tab-btn {
       flex: 1;
-      padding: 10px 0;
+      padding: 11px 0;
       border: none;
       background: transparent;
-      font-size: 13px;
-      font-weight: 500;
-      color: #6B7280;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
       cursor: pointer;
       border-bottom: 2px solid transparent;
       transition: color 0.2s, border-color 0.2s;
       font-family: inherit;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
     }
 
     .tab-btn:hover {
-      color: #374151;
+      color: rgba(255,255,255,0.85);
     }
 
     .tab-btn.active {
-      color: #3B82F6;
-      border-bottom-color: #3B82F6;
+      color: #FFFFFF;
+      border-bottom-color: #60A5FA;
     }
 
     /* --- Tab Content --- */
@@ -425,46 +428,74 @@
 
     /* --- Deploy Tab --- */
     .deploy-section {
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
     .deploy-section h3 {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      color: #374151;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #0F172A;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .deploy-section h3 .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3B82F6;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .deploy-hint {
+      font-size: 12px;
+      color: #64748B;
+      margin-bottom: 10px;
+      line-height: 1.6;
     }
 
     .embed-code-block {
-      background: #1F2937;
-      color: #E5E7EB;
-      padding: 12px;
-      border-radius: 8px;
-      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: #0F172A;
+      color: #94A3B8;
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
       font-size: 11px;
       word-break: break-all;
       white-space: pre-wrap;
       max-height: 100px;
       overflow-y: auto;
       position: relative;
+      border: 1px solid #1E293B;
     }
 
     .copy-btn {
       position: absolute;
-      top: 6px;
-      right: 6px;
-      padding: 4px 8px;
+      top: 8px;
+      right: 8px;
+      padding: 5px 10px;
       font-size: 11px;
-      border-radius: 4px;
-      background: #374151;
-      color: #D1D5DB;
-      border: 1px solid #4B5563;
+      font-weight: 600;
+      border-radius: 6px;
+      background: #334155;
+      color: #E2E8F0;
+      border: 1px solid #475569;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      font-family: inherit;
     }
 
     .copy-btn:hover {
-      background: #4B5563;
+      background: #475569;
+      color: #fff;
     }
 
     .embed-wrapper {
@@ -473,63 +504,74 @@
 
     .deploy-url {
       font-size: 11px;
-      color: #6B7280;
+      color: #64748B;
       word-break: break-all;
-      margin-top: 6px;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #F1F5F9;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
     }
 
     /* --- Mini Preview --- */
     .mini-preview {
       background: #FFFFFF;
-      border: 1px solid #E5E7EB;
-      border-radius: 8px;
-      padding: 12px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
     }
 
-    .preview-header {
+    .preview-header-bar {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 8px;
+      gap: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      border-radius: 12px 12px 0 0;
     }
 
     .preview-dot {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+      border: 2px solid rgba(255,255,255,0.7);
     }
 
     .preview-name {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
-      color: #374151;
+      color: #fff;
     }
 
     .preview-chat {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
+      padding: 12px 14px;
     }
 
     .preview-msg {
-      font-size: 10px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      max-width: 75%;
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      max-width: 80%;
+      line-height: 1.4;
     }
 
     .preview-msg.user {
       align-self: flex-end;
       color: #FFFFFF;
-      border-bottom-right-radius: 2px;
+      border-bottom-right-radius: 3px;
     }
 
     .preview-msg.bot {
       align-self: flex-start;
-      background: #F3F4F6;
-      color: #374151;
-      border-bottom-left-radius: 2px;
+      background: #F1F5F9;
+      color: #334155;
+      border-bottom-left-radius: 3px;
     }
 
     /* --- Scrollbar --- */
@@ -556,6 +598,7 @@
   <!-- Tab Bar -->
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
+    <button class="tab-btn" onclick="switchTab('knowledge')">Knowledge</button>
     <button class="tab-btn" onclick="switchTab('chat')">Test Chat</button>
     <button class="tab-btn" onclick="switchTab('deploy')">Deploy</button>
   </div>
@@ -612,6 +655,23 @@
     </div>
 
     <div class="form-group">
+      <label for="welcomeMessage">Welcome Message</label>
+      <input type="text" id="welcomeMessage" placeholder="Hello! How can I help you today?">
+    </div>
+
+    <div class="form-group">
+      <label for="suggestedQuestions">Suggested Questions (one per line)</label>
+      <textarea id="suggestedQuestions" rows="3" placeholder="What are your business hours?&#10;How can I contact support?&#10;Tell me about pricing"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="leadCaptureEnabled" style="width:auto;">
+        <span>Enable Lead Capture (ask for name & email before chat)</span>
+      </label>
+    </div>
+
+    <div class="form-group">
       <label>Bot Color</label>
       <div class="color-swatches">
         <div class="color-swatch selected" style="background:#3B82F6" data-color="#3B82F6" onclick="selectColor(this)"></div>
@@ -655,9 +715,23 @@
   <div id="tab-chat" class="tab-content">
     <div class="chat-header" id="chatHeader">Model: --</div>
 
+    <!-- Lead Capture Form -->
+    <div id="leadForm" style="display:none; padding:16px; background:#F9FAFB; border-bottom:1px solid #E5E7EB; flex-shrink:0;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:8px; color:#374151;">Before we chat, tell us about yourself:</div>
+      <div class="form-group">
+        <input type="text" id="leadName" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <input type="text" id="leadEmail" placeholder="Your email">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="submitLead()">Start Chat</button>
+    </div>
+
     <div class="chat-messages" id="chatMessages">
       <!-- messages injected here -->
     </div>
+
+    <div id="chatSuggestions" style="display:none; padding:0 0 8px 0; display:flex; flex-wrap:wrap; gap:6px; flex-shrink:0;"></div>
 
     <div class="typing-indicator" id="typingIndicator">
       <div class="typing-dot"></div>
@@ -680,30 +754,86 @@
   <div id="tab-deploy" class="tab-content">
 
     <div class="deploy-section">
-      <button class="btn btn-primary btn-block" onclick="generateEmbed()">Generate Embed Code</button>
+      <h3><span class="step-num">1</span> Generate Your Widget</h3>
+      <p class="deploy-hint">Make sure you've saved your config first, then click below.</p>
+      <button class="btn btn-primary btn-block" onclick="generateEmbed()" style="padding:11px 16px; font-size:14px;">🚀 Generate Embed Code</button>
     </div>
 
     <div class="deploy-section" id="embedSection" style="display:none;">
-      <h3>Embed Code</h3>
-      <div class="embed-wrapper">
-        <div class="embed-code-block" id="embedCode"></div>
-        <button class="copy-btn" onclick="copyEmbed()">Copy</button>
+      <h3><span class="step-num">2</span> Add to Your Website</h3>
+      <p class="deploy-hint">Choose how you want to add the chatbot:</p>
+
+      <!-- Option A: AI Tool prompt -->
+      <div style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:10px; padding:14px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:700; color:#4338CA; margin-bottom:6px;">✨ For Vibe Coders</div>
+        <p style="font-size:12px; color:#4338CA; margin-bottom:10px; opacity:0.8;">Copy this prompt and paste it into Cursor, Windsurf, or any AI coding tool.</p>
+        <button class="btn btn-block" onclick="copyAIPrompt()" id="copyAIBtn" style="background:#4338CA; color:#fff; padding:10px; font-size:13px;">📋 Copy Prompt for AI Tool</button>
       </div>
+
+      <!-- Option B: Manual script tag -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px; font-weight:600; color:#64748B; margin-bottom:6px;">Or copy the script tag manually:</div>
+        <div class="embed-wrapper">
+          <div class="embed-code-block" id="embedCode"></div>
+          <button class="copy-btn" onclick="copyEmbed()">Copy</button>
+        </div>
+      </div>
+
       <div class="deploy-url" id="deployUrl"></div>
     </div>
 
     <div class="deploy-section">
-      <h3>Widget Preview</h3>
+      <h3><span class="step-num">3</span> Preview</h3>
+      <p class="deploy-hint">This is how your chat widget will appear on your website.</p>
       <div class="mini-preview" id="miniPreview">
-        <div class="preview-header">
-          <div class="preview-dot" id="previewDot" style="background:#3B82F6"></div>
+        <div class="preview-header-bar" id="previewHeaderBar" style="background:#3B82F6">
+          <div class="preview-dot" id="previewDot"></div>
           <span class="preview-name" id="previewName">Assistant</span>
         </div>
         <div class="preview-chat">
-          <div class="preview-msg user" id="previewUserMsg" style="background:#3B82F6">Hi there!</div>
-          <div class="preview-msg bot">Hello! How can I help you today?</div>
+          <div class="preview-msg bot" id="previewWelcome">Hello! How can I help you today?</div>
+          <div class="preview-msg user" id="previewUserMsg" style="background:#3B82F6">What are your pricing plans?</div>
+          <div class="preview-msg bot">We offer Basic ($9/mo), Pro ($29/mo), and Enterprise plans. All include a 14-day free trial!</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== KNOWLEDGE TAB ==================== -->
+  <div id="tab-knowledge" class="tab-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div>
+        <strong style="font-size:14px;">Knowledge Base</strong>
+        <div style="font-size:11px; color:#6B7280;" id="kbCount">0 entries</div>
+      </div>
+      <button class="btn btn-primary" onclick="showAddEntry()">+ Add</button>
+    </div>
+
+    <div id="addEntryForm" style="display:none; margin-bottom:12px; padding:12px; background:#F9FAFB; border-radius:8px; border:1px solid #E5E7EB;">
+      <div class="form-group">
+        <label for="kbCategory">Category</label>
+        <input type="text" id="kbCategory" placeholder="e.g., Pricing, Support">
+      </div>
+      <div class="form-group">
+        <label for="kbQuestion">Question / Title</label>
+        <input type="text" id="kbQuestion" placeholder="What are your business hours?">
+      </div>
+      <div class="form-group">
+        <label for="kbAnswer">Answer / Content</label>
+        <textarea id="kbAnswer" rows="3" placeholder="The detailed answer..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="kbKeywords">Keywords (comma-separated)</label>
+        <input type="text" id="kbKeywords" placeholder="hours, open, schedule">
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-primary" onclick="saveKBEntry()" style="flex:1">Save</button>
+        <button class="btn btn-secondary" onclick="hideAddEntry()" style="flex:1">Cancel</button>
+      </div>
+    </div>
+
+    <div id="kbEntries" style="display:flex; flex-direction:column; gap:8px; overflow-y:auto;">
+      <div style="text-align:center; padding:20px; color:#9CA3AF;">Loading...</div>
     </div>
   </div>
 
@@ -715,6 +845,7 @@
     var chatHistory = [];
     var currentEmbedCode = '';
     var sendingChat = false;
+    var leadSubmitted = false;
 
     var TEMPLATES = {
       'customer-support': 'You are a helpful customer support agent. Be polite, concise, and helpful. Answer questions about products and services.',
@@ -741,7 +872,7 @@
 
     // --- Tab Switching ---
     function switchTab(tab) {
-      var tabs = ['setup', 'chat', 'deploy'];
+      var tabs = ['setup', 'knowledge', 'chat', 'deploy'];
       for (var i = 0; i < tabs.length; i++) {
         var btn = document.querySelector('.tab-btn:nth-child(' + (i + 1) + ')');
         var content = document.getElementById('tab-' + tabs[i]);
@@ -753,8 +884,13 @@
           content.classList.remove('active');
         }
       }
+      if (tab === 'knowledge') {
+        loadKnowledgeEntries();
+      }
       if (tab === 'chat') {
         updateChatHeader();
+        checkLeadCapture();
+        showWelcomeAndSuggestions();
       }
       if (tab === 'deploy') {
         updatePreview();
@@ -775,7 +911,15 @@
       }
 
       document.getElementById('customBaseUrl').value = config.customBaseUrl || '';
-      document.getElementById('apiKey').value = config.apiKey || '';
+      // Show masked API key — user must re-enter to change
+      var apiKeyInput = document.getElementById('apiKey');
+      if (config.apiKey) {
+        apiKeyInput.value = config.apiKey.substring(0, 4) + '...' + config.apiKey.substring(config.apiKey.length - 4);
+        apiKeyInput.setAttribute('data-masked', 'true');
+      } else {
+        apiKeyInput.value = '';
+        apiKeyInput.removeAttribute('data-masked');
+      }
       document.getElementById('systemPrompt').value = config.systemPrompt || '';
       document.getElementById('botName').value = config.botName || 'Assistant';
       document.getElementById('temperature').value = config.temperature || 0.7;
@@ -797,6 +941,11 @@
       updateCharCounter();
       updateChatHeader();
       updatePreview();
+
+      // Welcome message + suggested questions
+      document.getElementById('welcomeMessage').value = config.welcomeMessage || '';
+      document.getElementById('suggestedQuestions').value = (config.suggestedQuestions || '').replace(/,/g, '\n');
+      document.getElementById('leadCaptureEnabled').checked = config.leadCaptureEnabled === 'true';
     }
 
     // --- Provider Change ---
@@ -882,14 +1031,17 @@
       var config = {
         provider: providerKey,
         model: modelVal,
-        apiKey: document.getElementById('apiKey').value,
+        apiKey: document.getElementById('apiKey').getAttribute('data-masked') ? undefined : document.getElementById('apiKey').value,
         customBaseUrl: document.getElementById('customBaseUrl').value,
         systemPrompt: document.getElementById('systemPrompt').value,
         botName: document.getElementById('botName').value,
         botColor: selectedColor,
         temperature: document.getElementById('temperature').value,
         maxTokens: document.getElementById('maxTokens').value,
-        topP: document.getElementById('topP').value
+        topP: document.getElementById('topP').value,
+        welcomeMessage: document.getElementById('welcomeMessage').value,
+        suggestedQuestions: document.getElementById('suggestedQuestions').value.split('\n').filter(function(s){return s.trim();}).join(','),
+        leadCaptureEnabled: document.getElementById('leadCaptureEnabled').checked ? 'true' : 'false'
       };
 
       google.script.run
@@ -930,6 +1082,7 @@
       if (!msg || sendingChat) return;
 
       sendingChat = true;
+      document.getElementById('chatSuggestions').style.display = 'none';
       appendMessage('user', msg);
       input.value = '';
       chatHistory.push({ role: 'user', content: msg });
@@ -983,6 +1136,76 @@
     function clearChat() {
       document.getElementById('chatMessages').innerHTML = '';
       chatHistory = [];
+      showWelcomeAndSuggestions();
+    }
+
+    function showWelcomeAndSuggestions() {
+      var msgs = document.getElementById('chatMessages');
+      var sugContainer = document.getElementById('chatSuggestions');
+      // Show welcome message if chat is empty
+      if (chatHistory.length === 0) {
+        var welcomeMsg = document.getElementById('welcomeMessage').value || '';
+        if (welcomeMsg) {
+          msgs.innerHTML = '';
+          appendMessage('bot', welcomeMsg);
+          chatHistory = []; // Don't add welcome to history
+        }
+        // Show suggested questions
+        var sugText = document.getElementById('suggestedQuestions').value || '';
+        var suggestions = sugText.split('\n').filter(function(s) { return s.trim(); });
+        if (suggestions.length > 0) {
+          var html = '';
+          for (var i = 0; i < suggestions.length; i++) {
+            html += '<button class="chip" onclick="useSuggestion(this)" style="font-size:12px;">' + escapeHtml(suggestions[i].trim()) + '</button>';
+          }
+          sugContainer.innerHTML = html;
+          sugContainer.style.display = 'flex';
+        } else {
+          sugContainer.style.display = 'none';
+        }
+      }
+    }
+
+    function useSuggestion(btn) {
+      var input = document.getElementById('chatInput');
+      input.value = btn.textContent;
+      input.focus();
+      sendMessage();
+    }
+
+    // --- Lead Capture ---
+    function checkLeadCapture() {
+      var enabled = document.getElementById('leadCaptureEnabled').checked;
+      var leadForm = document.getElementById('leadForm');
+      var chatMessages = document.getElementById('chatMessages');
+      var chatInput = document.querySelector('.chat-input-row');
+      var chatSuggestions = document.getElementById('chatSuggestions');
+      if (enabled && !leadSubmitted) {
+        leadForm.style.display = 'block';
+        chatMessages.style.display = 'none';
+        chatInput.style.display = 'none';
+        chatSuggestions.style.display = 'none';
+      } else {
+        leadForm.style.display = 'none';
+        chatMessages.style.display = 'flex';
+        chatInput.style.display = 'flex';
+      }
+    }
+
+    function submitLead() {
+      var name = document.getElementById('leadName').value.trim();
+      var email = document.getElementById('leadEmail').value.trim();
+      if (!name || !email) {
+        alert('Please enter your name and email.');
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function() {
+          leadSubmitted = true;
+          checkLeadCapture();
+          showWelcomeAndSuggestions();
+        })
+        .saveLead({ name: name, email: email, source: 'sidebar' });
     }
 
     function resetAndReload() {
@@ -1055,7 +1278,6 @@
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(currentEmbedCode);
       } else {
-        // Fallback for older browsers
         var ta = document.createElement('textarea');
         ta.value = currentEmbedCode;
         ta.style.position = 'fixed';
@@ -1073,12 +1295,123 @@
       }, 1500);
     }
 
+    function copyAIPrompt() {
+      if (!currentEmbedCode) return;
+      var urlMatch = currentEmbedCode.match(/src="([^"]+)"/);
+      var url = urlMatch ? urlMatch[1] : '';
+      var botName = document.getElementById('botName').value || 'Assistant';
+
+      var prompt = 'Add an AI chatbot widget to my website. ' +
+        'Place this script tag just before the closing </body> tag in the main HTML layout file (e.g., index.html, layout.tsx, _document.tsx, or app.html):\n\n' +
+        currentEmbedCode + '\n\n' +
+        'This loads a floating chat widget named "' + botName + '" that appears as a circle button in the bottom-right corner of the page. ' +
+        'When clicked, it opens a chat panel. No other setup is needed — the script is self-contained and injects its own HTML, CSS, and JS.\n\n' +
+        'Important:\n' +
+        '- Do NOT wrap it in React/Vue components — it is a plain script tag\n' +
+        '- Place it ONCE in the root layout, not on individual pages\n' +
+        '- It works on any website (HTML, React, Next.js, Vue, Svelte, etc.)\n' +
+        '- It will not conflict with existing styles (all styles are scoped)\n' +
+        '- Widget URL: ' + url;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(prompt);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = prompt;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      var btn = document.getElementById('copyAIBtn');
+      btn.textContent = '✅ Copied! Paste in your AI tool';
+      btn.style.background = '#059669';
+      setTimeout(function() {
+        btn.textContent = '📋 Copy Prompt for AI Tool';
+        btn.style.background = '#4338CA';
+      }, 3000);
+    }
+
     // --- Preview ---
     function updatePreview() {
       var botName = document.getElementById('botName').value || 'Assistant';
+      var welcomeMsg = document.getElementById('welcomeMessage').value || 'Hello! How can I help you today?';
       document.getElementById('previewName').textContent = botName;
-      document.getElementById('previewDot').style.background = selectedColor;
+      document.getElementById('previewHeaderBar').style.background = selectedColor;
       document.getElementById('previewUserMsg').style.background = selectedColor;
+      document.getElementById('previewWelcome').textContent = welcomeMsg;
+    }
+
+    // --- Knowledge Base ---
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function loadKnowledgeEntries() {
+      google.script.run.withSuccessHandler(function(entries) {
+        var container = document.getElementById('kbEntries');
+        document.getElementById('kbCount').textContent = (entries ? entries.length : 0) + ' entries';
+        if (!entries || entries.length === 0) {
+          container.innerHTML = '<div style="text-align:center; padding:20px; color:#9CA3AF;">No entries yet. Click "+ Add" or add rows directly in the KnowledgeBase sheet.</div>';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          var preview = e.answer.length > 80 ? e.answer.substring(0, 80) + '...' : e.answer;
+          html += '<div style="padding:10px; background:#fff; border:1px solid #E5E7EB; border-radius:8px;">';
+          html += '<div style="display:flex; justify-content:space-between; align-items:flex-start;">';
+          html += '<div style="flex:1; min-width:0;">';
+          if (e.category) html += '<span style="font-size:10px; background:#EFF6FF; color:#3B82F6; padding:2px 6px; border-radius:10px; font-weight:500;">' + escapeHtml(e.category) + '</span>';
+          html += '<div style="font-size:13px; font-weight:600; color:#111827; margin-top:4px;">' + escapeHtml(e.question) + '</div>';
+          html += '<div style="font-size:12px; color:#6B7280; margin-top:2px;">' + escapeHtml(preview) + '</div>';
+          html += '</div>';
+          html += '<button onclick="deleteKBEntry(' + e.row + ')" style="background:none; border:none; color:#EF4444; cursor:pointer; font-size:16px; padding:2px 6px; flex-shrink:0;" title="Delete">&times;</button>';
+          html += '</div></div>';
+        }
+        container.innerHTML = html;
+      }).getKnowledgeEntries();
+    }
+
+    function showAddEntry() {
+      document.getElementById('addEntryForm').style.display = 'block';
+    }
+
+    function hideAddEntry() {
+      document.getElementById('addEntryForm').style.display = 'none';
+      document.getElementById('kbCategory').value = '';
+      document.getElementById('kbQuestion').value = '';
+      document.getElementById('kbAnswer').value = '';
+      document.getElementById('kbKeywords').value = '';
+    }
+
+    function saveKBEntry() {
+      var entry = {
+        category: document.getElementById('kbCategory').value.trim(),
+        question: document.getElementById('kbQuestion').value.trim(),
+        answer: document.getElementById('kbAnswer').value.trim(),
+        keywords: document.getElementById('kbKeywords').value.trim()
+      };
+      if (!entry.question || !entry.answer) {
+        alert('Question and Answer are required.');
+        return;
+      }
+      google.script.run.withSuccessHandler(function() {
+        hideAddEntry();
+        loadKnowledgeEntries();
+      }).addKnowledgeEntry(entry);
+    }
+
+    function deleteKBEntry(rowNumber) {
+      if (confirm('Delete this entry?')) {
+        google.script.run.withSuccessHandler(function() {
+          loadKnowledgeEntries();
+        }).deleteKnowledgeEntry(rowNumber);
+      }
     }
   </script>
 
