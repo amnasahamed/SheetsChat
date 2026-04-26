@@ -709,6 +709,7 @@
     var selectedColor = '#3B82F6';
     var chatHistory = [];
     var currentEmbedCode = '';
+    var sendingChat = false;
 
     var TEMPLATES = {
       'customer-support': 'You are a helpful customer support agent. Be polite, concise, and helpful. Answer questions about products and services.',
@@ -913,8 +914,9 @@
     function sendMessage() {
       var input = document.getElementById('chatInput');
       var msg = input.value.trim();
-      if (!msg) return;
+      if (!msg || sendingChat) return;
 
+      sendingChat = true;
       appendMessage('user', msg);
       input.value = '';
       chatHistory.push({ role: 'user', content: msg });
@@ -926,8 +928,10 @@
       google.script.run
         .withSuccessHandler(function(result) {
           hideTyping();
+          sendingChat = false;
           if (result.error) {
             appendMessage('error', result.error);
+            chatHistory.pop();
           } else {
             appendMessage('bot', result.response);
             chatHistory.push({ role: 'assistant', content: result.response });
@@ -935,7 +939,9 @@
         })
         .withFailureHandler(function(err) {
           hideTyping();
+          sendingChat = false;
           appendMessage('error', 'Request failed: ' + (err.message || 'Unknown error'));
+          chatHistory.pop();
         })
         .handleChat(msg, historySnapshot);
     }
@@ -972,13 +978,46 @@
           if (result && result.config) {
             populateForm(result.config);
           }
-          clearChat();
         })
         .resetConfig();
     }
 
     // --- Deploy ---
     function generateEmbed() {
+      // Warn if there are unsaved changes
+      var statusEl = document.getElementById('saveStatus');
+      var providerEl = document.getElementById('provider');
+      var providerKey = providerEl.value;
+      var modelVal = providerKey === 'custom' ? document.getElementById('customModel').value : document.getElementById('model').value;
+      var formColor = selectedColor;
+      var formConfig = {
+        provider: providerKey,
+        model: modelVal,
+        systemPrompt: document.getElementById('systemPrompt').value,
+        botName: document.getElementById('botName').value,
+        botColor: formColor
+      };
+
+      google.script.run
+        .withSuccessHandler(function(savedConfig) {
+          var needsSave = (
+            savedConfig.provider !== formConfig.provider ||
+            savedConfig.model !== formConfig.model ||
+            savedConfig.systemPrompt !== formConfig.systemPrompt ||
+            savedConfig.botName !== formConfig.botName ||
+            savedConfig.botColor !== formConfig.botColor
+          );
+          if (needsSave) {
+            statusEl.className = 'status error';
+            statusEl.textContent = 'Warning: You have unsaved changes. Save config first!';
+            return;
+          }
+          doGenerateEmbed();
+        })
+        .getConfig();
+    }
+
+    function doGenerateEmbed() {
       google.script.run
         .withSuccessHandler(function(code) {
           currentEmbedCode = code;

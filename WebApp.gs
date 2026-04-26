@@ -100,11 +100,11 @@ function buildWidgetJS(config) {
     's.textContent=' + JSON.stringify(css) + ';' +
     'D.head.appendChild(s);' +
 
-    // Detect dark mode
-    'if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches){root.classList.add("cb-dark");}' +
-
     // Create root
     'var root=D.createElement("div");root.id="cb-root";' +
+
+    // Detect dark mode (must be after root is created)
+    'if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches){root.classList.add("cb-dark");}' +
 
     // Create bubble
     'var bubble=D.createElement("button");bubble.id="cb-bubble";' +
@@ -141,7 +141,7 @@ function buildWidgetJS(config) {
     'D.body.appendChild(root);' +
 
     // State
-    'var isOpen=false;var H=[];' +
+    'var isOpen=false;var H=[];var sending=false;' +
     'try{H=JSON.parse(sessionStorage.getItem("cb_h")||"[]");}catch(e){}' +
 
     // Restore history
@@ -186,7 +186,8 @@ function buildWidgetJS(config) {
     // Send message
     'function send(){' +
     'var txt=inp.value.trim();' +
-    'if(!txt)return;' +
+    'if(!txt||sending)return;' +
+    'sending=true;sendBtn.disabled=true;sendBtn.style.opacity="0.5";' +
     'inp.value="";' +
     'appendMsg("user",txt);' +
     'H.push({role:"user",content:txt});' +
@@ -198,13 +199,17 @@ function buildWidgetJS(config) {
     '.then(function(r){return r.json();})' +
     '.then(function(d){' +
     'hideTyping();' +
-    'if(d.error){appendMsg("error","Error: "+d.error);}' +
+    'if(d.error){appendMsg("error","Error: "+d.error);H.pop();}' +
     'else{appendMsg("bot",d.response);H.push({role:"assistant",content:d.response});}' +
     'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
+    'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
     '})' +
     '.catch(function(e){' +
     'hideTyping();' +
     'appendMsg("error","Connection error. Please try again.");' +
+    'H.pop();' +
+    'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
+    'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
     '});' +
     '}' +
 
