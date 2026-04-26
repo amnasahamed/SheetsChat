@@ -606,6 +606,17 @@
   <!-- ==================== SETUP TAB ==================== -->
   <div id="tab-setup" class="tab-content active">
 
+    <div id="welcomeBanner" style="display:none; background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:700; color:#4338CA; margin-bottom:6px;">Welcome to Chatbot Builder!</div>
+      <p style="font-size:12px; color:#4338CA; opacity:0.8; line-height:1.6;">Set up your AI chatbot in 3 steps:</p>
+      <ol style="font-size:12px; color:#4338CA; opacity:0.8; line-height:1.8; padding-left:20px;">
+        <li>Pick a provider and paste your <strong>API key</strong></li>
+        <li>Customize your bot's name and behavior</li>
+        <li>Click <strong>Deploy</strong> to get your embed code</li>
+      </ol>
+      <button onclick="dismissWelcome()" style="margin-top:8px; padding:6px 12px; background:#4338CA; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;">Got it, let's go!</button>
+    </div>
+
     <div class="form-group">
       <label for="provider">Provider</label>
       <select id="provider" onchange="onProviderChange()">
@@ -946,6 +957,11 @@
       document.getElementById('welcomeMessage').value = config.welcomeMessage || '';
       document.getElementById('suggestedQuestions').value = (config.suggestedQuestions || '').replace(/,/g, '\n');
       document.getElementById('leadCaptureEnabled').checked = config.leadCaptureEnabled === 'true';
+
+      // Show welcome banner if no API key saved yet
+      var showWelcome = !config.apiKey;
+      try { showWelcome = showWelcome && !localStorage.getItem('cb_welcome_dismissed'); } catch(e) {}
+      document.getElementById('welcomeBanner').style.display = showWelcome ? 'block' : 'none';
     }
 
     // --- Provider Change ---
@@ -1413,7 +1429,12 @@
         }).deleteKnowledgeEntry(rowNumber);
       }
     }
-  </script>
+
+    // --- Welcome Banner ---
+    function dismissWelcome() {
+      document.getElementById('welcomeBanner').style.display = 'none';
+      try { localStorage.setItem('cb_welcome_dismissed', '1'); } catch(e) {}
+    }
 
 </body>
 </html>
