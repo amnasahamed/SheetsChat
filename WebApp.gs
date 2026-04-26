@@ -26,13 +26,9 @@ function doPost(e) {
     var message = body.message;
     var history = body.history || [];
 
-    var config = getConfig();
-    var startTime = new Date().getTime();
-    var result = callAI(config, message, history);
-    var latency = new Date().getTime() - startTime;
-    logConversation(message, result.response, result.model, latency);
+    var result = handleChat(message, history);
 
-    return corsResponse({ response: result.response });
+    return corsResponse(result);
   } catch (err) {
     return corsResponse({ error: err.message });
   }
@@ -88,9 +84,11 @@ function buildWidgetJS(config) {
     '.cb-dark #cb-messages{background:#1F2937;}',
     '.cb-dark .cb-bot{background:#374151;color:#E5E7EB;}',
     '.cb-dark #cb-typing{background:#374151;}',
+    '.cb-dark .cb-dot{background:#6B7280;}',
     '.cb-dark #cb-input-area{background:#1F2937;border-top-color:#374151;}',
     '.cb-dark #cb-input{background:#374151;color:#E5E7EB;border-color:#4B5563;}',
-    '.cb-dark #cb-input:focus{border-color:' + c.botColor + ';}'
+    '.cb-dark #cb-input:focus{border-color:' + c.botColor + ';}',
+    '.cb-dark #cb-header{background:' + c.botColor + ';}'
   ].join('\n');
 
   return '(function(){' +
@@ -103,9 +101,7 @@ function buildWidgetJS(config) {
     'D.head.appendChild(s);' +
 
     // Detect dark mode
-    'var dark=D.createElement("div");' +
-    'dark.className="cb-dark";' +
-    'if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches){D.documentElement.classList.add("cb-dark");}' +
+    'if(window.matchMedia&&window.matchMedia("(prefers-color-scheme:dark)").matches){root.classList.add("cb-dark");}' +
 
     // Create root
     'var root=D.createElement("div");root.id="cb-root";' +
