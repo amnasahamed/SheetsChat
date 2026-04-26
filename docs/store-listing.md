@@ -3,6 +3,9 @@
 ## App Name
 SheetsChat
 
+## Icon
+`128.png` (128x128 PNG — ready for marketplace upload)
+
 ## Short Description (132 chars max)
 Add a customizable AI chatbot to any website in minutes. Powered by Sheets. No coding required.
 
