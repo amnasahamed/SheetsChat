@@ -27,9 +27,10 @@ function openSidebar() {
 
 var CONFIG_DEFAULTS = {
   provider: 'openai',
-  model: 'gpt-5.5',
+  model: 'gpt-5.2',
   apiKey: '',
   customBaseUrl: '',
+  webAppUrl: '',
   systemPrompt: 'You are a helpful assistant.',
   botName: 'Assistant',
   botColor: '#3B82F6',
@@ -41,7 +42,7 @@ var CONFIG_DEFAULTS = {
   leadCaptureEnabled: 'false'
 };
 
-function getConfig() {
+function getConfigInternal_() {
   var props = PropertiesService.getDocumentProperties();
   var scriptProps = PropertiesService.getScriptProperties();
   var config = {};
@@ -57,13 +58,34 @@ function getConfig() {
   return config;
 }
 
+function getConfig() {
+  var config = getConfigInternal_();
+  var apiKey = config.apiKey || '';
+  config.hasApiKey = !!apiKey;
+  config.apiKeyMasked = apiKey ? maskApiKey_(apiKey) : '';
+  config.apiKey = config.apiKeyMasked;
+  return config;
+}
+
+function maskApiKey_(apiKey) {
+  apiKey = String(apiKey || '');
+  if (!apiKey) return '';
+  if (apiKey.length <= 8) return '********';
+  return apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4);
+}
+
 function saveConfig(config) {
   var props = PropertiesService.getDocumentProperties();
   var scriptProps = PropertiesService.getScriptProperties();
 
   // Store API key in ScriptProperties (not accessible by sheet users)
   if (config.apiKey !== undefined && config.apiKey !== null) {
-    scriptProps.setProperty('apiKey', String(config.apiKey));
+    var apiKey = String(config.apiKey).trim();
+    if (apiKey && apiKey.indexOf('...') === -1) {
+      scriptProps.setProperty('apiKey', apiKey);
+    } else if (!apiKey) {
+      scriptProps.deleteProperty('apiKey');
+    }
   }
 
   // Store everything else in DocumentProperties
@@ -81,7 +103,7 @@ function resetConfig() {
   var scriptProps = PropertiesService.getScriptProperties();
   props.deleteAllProperties();
   scriptProps.deleteProperty('apiKey');
-  return { success: true, config: CONFIG_DEFAULTS };
+  return { success: true, config: getConfig() };
 }
 
 function ensureConfigSheet() {
@@ -106,13 +128,14 @@ function ensureConfigSheet() {
 // --- Chat Handler ---
 
 function handleChat(message, history) {
-  var config = getConfig();
+  var config = getConfigInternal_();
   if (!config.apiKey) {
     return { error: 'Please set your API key in the Setup tab.' };
   }
 
   // Sanitize user message
   message = sanitizeHtml(message);
+  history = sanitizeHistory_(history);
 
   // Inject knowledge base context into system prompt
   var kbContext = getKnowledgeContext(message);
@@ -142,7 +165,27 @@ function handleChat(message, history) {
  * Strips HTML tags from a string to prevent injection.
  */
 function sanitizeHtml(text) {
-  return text.replace(/<[^>]*>/g, '');
+  if (text === undefined || text === null) return '';
+  return String(text)
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/javascript:/gi, '')
+    .trim();
+}
+
+function sanitizeHistory_(history) {
+  var clean = [];
+  if (!history || !history.length) return clean;
+  for (var i = 0; i < history.length && clean.length < 20; i++) {
+    var item = history[i] || {};
+    var role = item.role === 'assistant' ? 'assistant' : 'user';
+    var content = sanitizeHtml(item.content);
+    if (content) {
+      clean.push({ role: role, content: content.substring(0, 2000) });
+    }
+  }
+  return clean;
 }
 
 // --- Logging ---
@@ -175,9 +218,42 @@ function logConversation(userMsg, aiResponse, model, latency) {
 
 // --- Embed Code ---
 
-function getEmbedCode() {
-  var url = ScriptApp.getService().getUrl();
-  return '<script src="' + url + '?widget=true"></script>';
+function getEmbedCode(webAppUrl) {
+  var config = getConfigInternal_();
+  var url = normalizeWebAppUrl_(webAppUrl || config.webAppUrl || ScriptApp.getService().getUrl());
+  return '<script src="' + escapeHtmlAttribute_(withWidgetParam_(url)) + '"></script>';
+}
+
+function normalizeWebAppUrl_(url) {
+  url = String(url || '').trim();
+  if (!url) {
+    throw new Error('Web App URL is missing. Paste the /exec URL from Deploy > Manage deployments.');
+  }
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^?#]+\/(?:exec|dev)(?:[?#].*)?$/.test(url)) {
+    throw new Error('Invalid Web App URL. Use the Apps Script URL ending in /exec.');
+  }
+  return url;
+}
+
+function withWidgetParam_(url) {
+  if (/[?&]widget=true(?:&|$)/.test(url)) {
+    return url;
+  }
+  var hash = '';
+  var hashIndex = url.indexOf('#');
+  if (hashIndex !== -1) {
+    hash = url.substring(hashIndex);
+    url = url.substring(0, hashIndex);
+  }
+  return url + (url.indexOf('?') === -1 ? '?' : '&') + 'widget=true' + hash;
+}
+
+function escapeHtmlAttribute_(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // --- Lead Capture ---
@@ -202,12 +278,55 @@ function ensureLeadsSheet() {
 
 function saveLead(data) {
   var sheet = ensureLeadsSheet();
+  data = data || {};
   sheet.appendRow([
     new Date().toISOString(),
-    data.name || '',
-    data.email || '',
-    data.phone || '',
-    data.source || 'sidebar'
+    sanitizeHtml(data.name || '').substring(0, 200),
+    sanitizeHtml(data.email || '').substring(0, 320),
+    sanitizeHtml(data.phone || '').substring(0, 50),
+    sanitizeHtml(data.source || 'sidebar').substring(0, 50)
   ]);
   return { success: true };
+}
+
+/**
+ * Returns summary stats and recent activity for the dashboard.
+ */
+function getDashboardData() {
+  var config = getConfigInternal_();
+  var kbEntries = getKnowledgeEntries();
+
+  var leadsSheet = ensureLeadsSheet();
+  var leadsData = leadsSheet.getDataRange().getValues();
+  var leadCount = leadsData.length - 1;
+  if (leadCount < 0) leadCount = 0;
+
+  var recentLeads = [];
+  // Get last 3 leads
+  for (var j = leadsData.length - 1; j >= 1 && recentLeads.length < 3; j--) {
+    recentLeads.push({
+      name: leadsData[j][1],
+      email: leadsData[j][2]
+    });
+  }
+
+  var logsSheet = ensureLogsSheet();
+  var logsData = logsSheet.getDataRange().getValues();
+  var recentLogs = [];
+  // Get last 5 logs (skipping header)
+  for (var i = logsData.length - 1; i >= 1 && recentLogs.length < 5; i--) {
+    recentLogs.push({
+      timestamp: logsData[i][0],
+      userMsg: logsData[i][2],
+      model: logsData[i][4]
+    });
+  }
+
+  return {
+    kbCount: kbEntries.length,
+    leadCount: leadCount,
+    hasApiKey: !!config.apiKey,
+    recentLogs: recentLogs,
+    recentLeads: recentLeads
+  };
 }

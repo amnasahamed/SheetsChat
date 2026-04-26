@@ -591,32 +591,84 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #9CA3AF;
     }
+
+    .checklist-item.done {
+      color: #059669 !important;
+      font-weight: 600;
+    }
+    .checklist-item.done span:first-child {
+      color: #10B981;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Tab Bar -->
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('setup')">Setup</button>
     <button class="tab-btn" onclick="switchTab('knowledge')">Knowledge</button>
     <button class="tab-btn" onclick="switchTab('chat')">Test Chat</button>
     <button class="tab-btn" onclick="switchTab('deploy')">Deploy</button>
+    <button class="tab-btn" onclick="switchTab('provider')">Provider</button>
   </div>
 
   <!-- ==================== SETUP TAB ==================== -->
   <div id="tab-setup" class="tab-content active">
+    <div id="welcomeBanner" style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:12px; padding:18px; margin-bottom:20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <div style="font-size:16px; font-weight:700; color:#4338CA; margin-bottom:8px;">Welcome to SheetsChat! 🚀</div>
+      <p style="font-size:13px; color:#4338CA; opacity:0.9; line-height:1.6; margin-bottom:12px;">Transform your spreadsheet into a premium AI chatbot in minutes.</p>
 
-    <div id="welcomeBanner" style="display:none; background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <div style="font-size:14px; font-weight:700; color:#4338CA; margin-bottom:6px;">Welcome to SheetsChat!</div>
-      <p style="font-size:12px; color:#4338CA; opacity:0.8; line-height:1.6;">Set up your AI chatbot in 3 steps:</p>
-      <ol style="font-size:12px; color:#4338CA; opacity:0.8; line-height:1.8; padding-left:20px;">
-        <li>Pick a provider and paste your <strong>API key</strong></li>
-        <li>Customize your bot's name and behavior</li>
-        <li>Click <strong>Deploy</strong> to get your embed code</li>
-      </ol>
-      <button onclick="dismissWelcome()" style="margin-top:8px; padding:6px 12px; background:#4338CA; color:#fff; border:none; border-radius:6px; font-size:12px; cursor:pointer; font-weight:600;">Got it, let's go!</button>
+      <div style="background:rgba(255,255,255,0.5); border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="font-size:12px; font-weight:700; color:#4338CA; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Quick Start Checklist</div>
+        <div class="checklist-item" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#4338CA; margin-bottom:6px;">
+          <span id="check-provider" style="font-size:14px;">○</span>
+          <span>Configure AI Provider & API Key</span>
+        </div>
+        <div class="checklist-item" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#4338CA; margin-bottom:6px;">
+          <span id="check-knowledge" style="font-size:14px;">○</span>
+          <span>Add Knowledge Base entries</span>
+        </div>
+        <div class="checklist-item" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#4338CA;">
+          <span id="check-deploy" style="font-size:14px;">○</span>
+          <span>Deploy to your website</span>
+        </div>
+      </div>
+
+      <button onclick="switchTab('provider')" style="width:100%; padding:10px; background:#4338CA; color:#fff; border:none; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; transition: transform 0.2s;">Get Started →</button>
     </div>
 
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
+      <div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:12px; text-align:center;">
+        <div style="font-size:11px; color:#64748B; font-weight:600; text-transform:uppercase;">Knowledge</div>
+        <div id="stat-kb-count" style="font-size:20px; font-weight:700; color:#0F172A; margin:4px 0;">0</div>
+        <div style="font-size:10px; color:#94A3B8;">Entries</div>
+      </div>
+      <div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:12px; text-align:center;">
+        <div style="font-size:11px; color:#64748B; font-weight:600; text-transform:uppercase;">Leads</div>
+        <div id="stat-leads-count" style="font-size:20px; font-weight:700; color:#0F172A; margin:4px 0;">0</div>
+        <div style="font-size:10px; color:#94A3B8;">Captured</div>
+      </div>
+    </div>
+
+    <div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:14px; margin-bottom:12px;">
+      <h4 style="font-size:13px; font-weight:700; color:#0F172A; margin-bottom:10px;">Recent Activity</h4>
+      <div id="recent-activity" style="font-size:12px; color:#64748B;">
+        <div style="padding:8px 0; border-bottom:1px solid #F1F5F9;">No recent activity yet.</div>
+      </div>
+    </div>
+
+    <div style="background:#fff; border:1px solid #E2E8F0; border-radius:10px; padding:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h4 style="font-size:13px; font-weight:700; color:#0F172A;">Recent Leads</h4>
+        <button class="btn btn-secondary" onclick="exportLeads()" style="font-size:10px; padding:4px 8px;">Export</button>
+      </div>
+      <div id="recent-leads" style="font-size:12px; color:#64748B;">
+        <div style="padding:8px 0; border-bottom:1px solid #F1F5F9;">No leads captured yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PROVIDER TAB ==================== -->
+  <div id="tab-provider" class="tab-content">
     <div class="form-group">
       <label for="provider">Provider</label>
       <select id="provider" onchange="onProviderChange()">
@@ -644,7 +696,7 @@
     <div class="form-group">
       <label for="apiKey">API Key <a href="https://platform.openai.com/api-keys" target="_blank" style="font-size:10px; font-weight:400; color:#3B82F6; text-decoration:none;">(Where do I get one?)</a></label>
       <div class="api-key-wrapper">
-        <input type="password" id="apiKey" placeholder="sk-...">
+        <input type="password" id="apiKey" placeholder="sk-..." onkeydown="clearMaskedApiKey(event)" onpaste="clearMaskedApiKey(event)">
         <button class="eye-toggle" onclick="toggleApiKey()" title="Show/Hide API Key" aria-label="Toggle API key visibility">&#128065;</button>
       </div>
     </div>
@@ -767,10 +819,19 @@
 
     <div id="deploySaveHint" style="display:none; background:#FEF3C7; border:1px solid #FCD34D; border-radius:8px; padding:12px; margin-bottom:16px; font-size:12px; color:#92400E;">
       Save your configuration in the <strong>Setup</strong> tab before deploying.
-    </div>    <div class="deploy-section">
+    </div>
+    <div class="deploy-section">
       <h3><span class="step-num">1</span> Generate Your Widget</h3>
       <p class="deploy-hint">Make sure you've saved your config first, then click below.</p>
       <button class="btn btn-primary btn-block" onclick="generateEmbed()" style="padding:11px 16px; font-size:14px;">🚀 Generate Embed Code</button>
+      <details style="margin-top:12px;">
+        <summary style="font-size:12px; color:#64748B;">Having trouble?</summary>
+        <div class="form-group" style="margin-top:8px;">
+          <label for="webAppUrl">Use a specific Web App URL</label>
+          <input type="text" id="webAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
+          <div style="font-size:11px; color:#64748B; margin-top:4px;">Only use this if the generated URL does not match your deployment.</div>
+        </div>
+      </details>
     </div>
 
     <div class="deploy-section" id="embedSection" style="display:none;">
@@ -882,11 +943,77 @@
       }
       // Load config after providers are ready
       google.script.run.withSuccessHandler(populateForm).getConfig();
+      updateDashboardStats();
     }).getProviders();
+
+    // --- Dashboard Stats ---
+    function updateDashboardStats() {
+      google.script.run.withSuccessHandler(function(data) {
+        document.getElementById('stat-kb-count').textContent = data.kbCount;
+        document.getElementById('stat-leads-count').textContent = data.leadCount;
+
+        // Update checklist
+        var checkApi = document.getElementById('check-provider');
+        if (data.hasApiKey) {
+          checkApi.textContent = '✓';
+          checkApi.parentElement.classList.add('done');
+        } else {
+          checkApi.textContent = '○';
+          checkApi.parentElement.classList.remove('done');
+        }
+
+        var checkKb = document.getElementById('check-knowledge');
+        if (data.kbCount > 0) {
+          checkKb.textContent = '✓';
+          checkKb.parentElement.classList.add('done');
+        } else {
+          checkKb.textContent = '○';
+          checkKb.parentElement.classList.remove('done');
+        }
+
+        // Update Recent Activity
+        var activityEl = document.getElementById('recent-activity');
+        if (data.recentLogs && data.recentLogs.length > 0) {
+          var html = '';
+          for (var i = 0; i < data.recentLogs.length; i++) {
+            var log = data.recentLogs[i];
+            var time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            html += '<div style="padding:10px 0; border-bottom:1px solid #F1F5F9; display:flex; justify-content:space-between; align-items:center;">';
+            html += '<div><div style="font-weight:600; color:#1E293B; margin-bottom:2px;">User: ' + escapeHtml(log.userMsg.substring(0, 30)) + (log.userMsg.length > 30 ? '...' : '') + '</div>';
+            html += '<div style="font-size:10px; color:#94A3B8;">' + time + ' • ' + log.model + '</div></div>';
+            html += '</div>';
+          }
+          activityEl.innerHTML = html;
+        } else {
+          activityEl.innerHTML = '<div style="padding:16px 0; text-align:center; color:#94A3B8;">No recent chat activity.</div>';
+        }
+
+        // Update Recent Leads
+        var leadsEl = document.getElementById('recent-leads');
+        if (data.recentLeads && data.recentLeads.length > 0) {
+          var lhtml = '';
+          for (var j = 0; j < data.recentLeads.length; j++) {
+            var lead = data.recentLeads[j];
+            lhtml += '<div style="padding:10px 0; border-bottom:1px solid #F1F5F9;">';
+            lhtml += '<div style="font-weight:600; color:#1E293B;">' + escapeHtml(lead.name) + '</div>';
+            lhtml += '<div style="font-size:11px; color:#3B82F6;">' + escapeHtml(lead.email) + '</div>';
+            lhtml += '</div>';
+          }
+          leadsEl.innerHTML = lhtml;
+        } else {
+          leadsEl.innerHTML = '<div style="padding:16px 0; text-align:center; color:#94A3B8;">No leads yet. Enable Lead Capture in Provider tab!</div>';
+        }
+      }).getDashboardData();
+    }
+
+    function exportLeads() {
+      // Just a shortcut to the sheet
+      alert('Leads are stored in the "Leads" sheet in this spreadsheet.');
+    }
 
     // --- Tab Switching ---
     function switchTab(tab) {
-      var tabs = ['setup', 'knowledge', 'chat', 'deploy'];
+      var tabs = ['setup', 'knowledge', 'chat', 'deploy', 'provider'];
       for (var i = 0; i < tabs.length; i++) {
         var btn = document.querySelector('.tab-btn:nth-child(' + (i + 1) + ')');
         var content = document.getElementById('tab-' + tabs[i]);
@@ -898,6 +1025,9 @@
           content.classList.remove('active');
         }
       }
+      if (tab === 'setup') {
+        updateDashboardStats();
+      }
       if (tab === 'knowledge') {
         loadKnowledgeEntries();
       }
@@ -908,7 +1038,8 @@
       }
       if (tab === 'deploy') {
         updatePreview();
-        var hasKey = document.getElementById('apiKey').getAttribute('data-masked');
+        var apiKeyEl = document.getElementById('apiKey');
+        var hasKey = apiKeyEl.getAttribute('data-masked') || apiKeyEl.value.trim();
         document.getElementById('deploySaveHint').style.display = hasKey ? 'none' : 'block';
       }
     }
@@ -927,10 +1058,12 @@
       }
 
       document.getElementById('customBaseUrl').value = config.customBaseUrl || '';
+      document.getElementById('webAppUrl').value = config.webAppUrl || '';
       // Show masked API key — user must re-enter to change
       var apiKeyInput = document.getElementById('apiKey');
-      if (config.apiKey) {
-        apiKeyInput.value = config.apiKey.substring(0, 4) + '...' + config.apiKey.substring(config.apiKey.length - 4);
+      var hasApiKey = !!(config.hasApiKey || config.apiKey || config.apiKeyMasked);
+      if (hasApiKey) {
+        apiKeyInput.value = config.apiKeyMasked || config.apiKey || '********';
         apiKeyInput.setAttribute('data-masked', 'true');
       } else {
         apiKeyInput.value = '';
@@ -963,10 +1096,11 @@
       document.getElementById('suggestedQuestions').value = (config.suggestedQuestions || '').replace(/,/g, '\n');
       document.getElementById('leadCaptureEnabled').checked = config.leadCaptureEnabled === 'true';
 
-      // Show welcome banner if no API key saved yet
-      var showWelcome = !config.apiKey;
+      var showWelcome = !hasApiKey;
       try { showWelcome = showWelcome && !localStorage.getItem('cb_welcome_dismissed'); } catch(e) {}
       document.getElementById('welcomeBanner').style.display = showWelcome ? 'block' : 'none';
+
+      updateDashboardStats();
     }
 
     // --- Provider Change ---
@@ -1031,6 +1165,22 @@
       input.type = input.type === 'password' ? 'text' : 'password';
     }
 
+    function clearMaskedApiKey(event) {
+      var input = document.getElementById('apiKey');
+      if (!input.getAttribute('data-masked')) return;
+      if (event && event.type === 'keydown') {
+        var ignored = ['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+        if (ignored.indexOf(event.key) !== -1) return;
+      }
+      input.value = '';
+      input.removeAttribute('data-masked');
+      if (event && event.type === 'paste') {
+        event.preventDefault();
+        var text = (event.clipboardData || window.clipboardData).getData('text');
+        input.value = text || '';
+      }
+    }
+
     // --- Save Config ---
     function saveConfig() {
       var statusEl = document.getElementById('saveStatus');
@@ -1054,6 +1204,7 @@
         model: modelVal,
         apiKey: document.getElementById('apiKey').getAttribute('data-masked') ? undefined : document.getElementById('apiKey').value,
         customBaseUrl: document.getElementById('customBaseUrl').value,
+        webAppUrl: document.getElementById('webAppUrl').value.trim(),
         systemPrompt: document.getElementById('systemPrompt').value,
         botName: document.getElementById('botName').value,
         botColor: selectedColor,
@@ -1073,6 +1224,7 @@
           saveBtn.textContent = 'Save Config';
           updateChatHeader();
           updatePreview();
+          updateDashboardStats();
         })
         .withFailureHandler(function(err) {
           statusEl.className = 'status error';
@@ -1275,6 +1427,7 @@
     }
 
     function doGenerateEmbed() {
+      var webAppUrl = document.getElementById('webAppUrl').value.trim();
       google.script.run
         .withSuccessHandler(function(code) {
           currentEmbedCode = code;
@@ -1291,7 +1444,7 @@
           document.getElementById('embedCode').textContent = 'Error: ' + (err.message || 'Failed to generate');
           document.getElementById('embedSection').style.display = 'block';
         })
-        .getEmbedCode();
+        .getEmbedCode(webAppUrl);
     }
 
     function copyEmbed() {
@@ -1441,5 +1594,6 @@
       try { localStorage.setItem('cb_welcome_dismissed', '1'); } catch(e) {}
     }
 
+  </script>
 </body>
 </html>

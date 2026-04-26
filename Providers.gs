@@ -10,7 +10,7 @@ var PROVIDERS = {
   openai: {
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1/chat/completions',
-    models: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'],
+    models: ['gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
@@ -18,7 +18,7 @@ var PROVIDERS = {
   anthropic: {
     name: 'Anthropic',
     baseUrl: 'https://api.anthropic.com/v1/messages',
-    models: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
+    models: ['claude-opus-4-1-20250805', 'claude-opus-4-20250514', 'claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'],
     authHeader: 'x-api-key',
     authPrefix: '',
     bodyFormat: 'anthropic',
@@ -27,7 +27,7 @@ var PROVIDERS = {
   gemini: {
     name: 'Google Gemini',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}',
-    models: ['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-05-20'],
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'],
     authHeader: null,
     authPrefix: '',
     bodyFormat: 'gemini'
@@ -35,7 +35,7 @@ var PROVIDERS = {
   openrouter: {
     name: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-    models: ['openai/gpt-4.1', 'anthropic/claude-sonnet-4-20250514', 'google/gemini-2.5-flash-preview-05-20', 'meta-llama/llama-4-maverick'],
+    models: ['openai/gpt-5.2', 'anthropic/claude-opus-4.1', 'google/gemini-2.5-flash', 'meta-llama/llama-4-maverick'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
@@ -43,7 +43,7 @@ var PROVIDERS = {
   groq: {
     name: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
-    models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
@@ -51,14 +51,14 @@ var PROVIDERS = {
   mistral: {
     name: 'Mistral',
     baseUrl: 'https://api.mistral.ai/v1/chat/completions',
-    models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'],
+    models: ['mistral-large-latest', 'mistral-small-latest'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
   },
   deepseek: {
     name: 'DeepSeek',
-    baseUrl: 'https://api.deepseek.com/v1/chat/completions',
+    baseUrl: 'https://api.deepseek.com/chat/completions',
     models: ['deepseek-chat', 'deepseek-reasoner'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
@@ -66,8 +66,8 @@ var PROVIDERS = {
   },
   cohere: {
     name: 'Cohere',
-    baseUrl: 'https://api.cohere.ai/v2/chat',
-    models: ['command-r-plus', 'command-r'],
+    baseUrl: 'https://api.cohere.com/v2/chat',
+    models: ['command-a-03-2025', 'command-r-plus'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'cohere'
@@ -75,7 +75,7 @@ var PROVIDERS = {
   together: {
     name: 'Together AI',
     baseUrl: 'https://api.together.xyz/v1/chat/completions',
-    models: ['meta-llama/Llama-3-70b-chat-hf', 'mistralai/Mixtral-8x7B-Instruct-v0.1'],
+    models: ['meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8', 'meta-llama/Llama-3.3-70B-Instruct-Turbo'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
@@ -83,7 +83,7 @@ var PROVIDERS = {
   fireworks: {
     name: 'Fireworks AI',
     baseUrl: 'https://api.fireworks.ai/inference/v1/chat/completions',
-    models: ['accounts/fireworks/models/llama-v3p1-70b-instruct'],
+    models: ['accounts/fireworks/models/llama-v3p3-70b-instruct', 'accounts/fireworks/models/llama-v3p1-8b-instruct'],
     authHeader: 'Authorization',
     authPrefix: 'Bearer ',
     bodyFormat: 'openai'
@@ -155,7 +155,7 @@ function callAI(config, message, history) {
   var payload = {};
 
   if (provider.bodyFormat === 'openai') {
-    payload = buildOpenAIPayload(model, messages, systemPrompt, temperature, maxTokens, topP);
+    payload = buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperature, maxTokens, topP);
     headers = buildAuthHeaders(provider, apiKey);
     headers['Content-Type'] = 'application/json';
   } else if (provider.bodyFormat === 'anthropic') {
@@ -208,7 +208,7 @@ function callAI(config, message, history) {
  * Builds OpenAI-compatible request payload.
  * Used by: openai, openrouter, groq, mistral, deepseek, together, fireworks, custom
  */
-function buildOpenAIPayload(model, messages, systemPrompt, temperature, maxTokens, topP) {
+function buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperature, maxTokens, topP) {
   var allMessages = [];
   if (systemPrompt) {
     allMessages.push({ role: 'system', content: systemPrompt });
@@ -220,9 +220,13 @@ function buildOpenAIPayload(model, messages, systemPrompt, temperature, maxToken
     model: model,
     messages: allMessages,
     temperature: temperature,
-    max_tokens: maxTokens,
     top_p: topP
   };
+  if (providerKey === 'openai') {
+    payload.max_completion_tokens = maxTokens;
+  } else {
+    payload.max_tokens = maxTokens;
+  }
   return payload;
 }
 
@@ -242,9 +246,11 @@ function buildAnthropicPayload(model, messages, systemPrompt, temperature, maxTo
     model: model,
     messages: chatMessages,
     max_tokens: maxTokens,
-    temperature: temperature,
-    top_p: topP
+    temperature: temperature
   };
+  if (model !== 'claude-opus-4-1-20250805') {
+    payload.top_p = topP;
+  }
   if (systemPrompt) {
     payload.system = systemPrompt;
   }
@@ -281,34 +287,24 @@ function buildGeminiPayload(messages, systemPrompt, temperature, maxTokens, topP
 }
 
 /**
- * Builds Cohere request payload.
+ * Builds Cohere v2 request payload.
+ * v2 uses OpenAI-style messages format with system/user/assistant roles.
  */
 function buildCoherePayload(model, messages, systemPrompt, temperature, maxTokens, topP) {
-  var chatHistory = [];
-  var lastMessage = '';
-
-  // Cohere separates history from the last user message
+  var allMessages = [];
+  if (systemPrompt) {
+    allMessages.push({ role: 'system', content: systemPrompt });
+  }
   for (var i = 0; i < messages.length; i++) {
-    if (i === messages.length - 1) {
-      lastMessage = messages[i].content;
-    } else {
-      var role = messages[i].role;
-      // Cohere uses USER/CHATBOT roles
-      var cohereRole = role === 'assistant' ? 'CHATBOT' : 'USER';
-      chatHistory.push({ role: cohereRole, message: messages[i].content });
-    }
+    allMessages.push({ role: messages[i].role, content: messages[i].content });
   }
 
   var payload = {
     model: model,
-    messages: [{ role: 'user', content: lastMessage }],
+    messages: allMessages,
     temperature: temperature,
-    max_tokens: maxTokens,
-    p: topP
+    max_tokens: maxTokens
   };
-  if (chatHistory.length > 0) {
-    payload.chat_history = chatHistory;
-  }
   return payload;
 }
 

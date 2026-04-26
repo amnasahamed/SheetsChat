@@ -12,71 +12,154 @@ var MAX_HISTORY_ENTRIES = 20;
 var MAX_HISTORY_ENTRY_LENGTH = 2000;
 
 function doGet(e) {
-  if (e.parameter && e.parameter.widget === 'true') {
+  var params = e && e.parameter ? e.parameter : {};
+  if (params.widget === 'true') {
     return serveWidget();
+  }
+  if (params.api === 'chat' || params.api === 'lead') {
+    return serveJsonpApi_(params);
   }
   // Status page
   var html = '<!DOCTYPE html><html><head><title>SheetsChat</title>';
-  html += '<style>body{font-family:system-ui;max-width:600px;margin:40px auto;padding:20px;}';
-  html += 'h1{color:#3B82F6;}p{color:#666;}.status{color:#10B981;font-weight:bold;}</style></head><body>';
+  html += '<style>body{font-family:system-ui;max-width:680px;margin:40px auto;padding:20px;color:#0F172A;}';
+  html += 'h1{color:#3B82F6;}p{color:#475569;line-height:1.6}.status{color:#10B981;font-weight:bold;}';
+  html += 'pre{white-space:pre-wrap;word-break:break-all;background:#0F172A;color:#E2E8F0;padding:14px;border-radius:8px;}';
+  html += 'button{background:#3B82F6;color:#fff;border:0;border-radius:6px;padding:10px 14px;font-weight:600;cursor:pointer;}</style></head><body>';
   html += '<h1>SheetsChat API</h1>';
   html += '<p class="status">Active</p>';
-  html += '<p>Add the embed code to your website to start chatting.</p>';
+  html += '<p>Copy this widget code into your website.</p>';
+  html += '<pre id="embed"></pre>';
+  html += '<button onclick="copyEmbed()">Copy widget code</button>';
+  html += '<script>';
+  html += 'var base=location.href.split("?")[0].split("#")[0];';
+  html += 'var code="<script src=\\"" + base + "?widget=true\\"><\\/script>";';
+  html += 'document.getElementById("embed").textContent=code;';
+  html += 'function copyEmbed(){navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code):null;}';
+  html += '</script>';
   html += '</body></html>';
   return HtmlService.createHtmlOutput(html);
 }
 
 function doPost(e) {
   try {
-    // Rate limit by session (use IP-like identifier from postData)
-    var sessionId = 'anon';
-    try {
-      var preBody = JSON.parse(e.postData.contents);
-      sessionId = preBody.sessionId || preBody.session_id || 'anon';
-    } catch (err) { /* use default */ }
-
-    if (!checkRateLimit(sessionId)) {
-      return corsResponse({ error: 'Rate limited. Please wait a moment and try again.' });
+    if (e && e.parameter && e.parameter.transport === 'iframe') {
+      return serveIframeApi_(e.parameter);
     }
-
-    var body = JSON.parse(e.postData.contents);
-
-    // Route: lead capture
-    if (body.type === 'lead') {
-      var result = saveLead(body);
-      return corsResponse(result);
-    }
-
-    // Route: chat message — validate inputs
-    if (!body.message || typeof body.message !== 'string') {
-      return corsResponse({ error: 'Message is required.' });
-    }
-    if (body.message.length > 4000) {
-      return corsResponse({ error: 'Message too long (max 4000 characters).' });
-    }
-
-    // Sanitize history
-    var history = [];
-    if (body.history && Array.isArray(body.history)) {
-      for (var i = 0; i < Math.min(body.history.length, 20); i++) {
-        var h = body.history[i];
-        if (h && typeof h.content === 'string' && h.content.length <= 2000) {
-          history.push({ role: String(h.role), content: h.content });
-        }
-      }
-    }
-
-    var chatResult = handleChat(body.message, history);
-    return corsResponse(chatResult);
+    var rawBody = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+    var body = JSON.parse(rawBody);
+    return corsResponse(handleWidgetRequest_(body));
   } catch (err) {
     return corsResponse({ error: err.message || 'Server error.' });
   }
 }
 
+function handleWidgetRequest_(body) {
+  body = body || {};
+  var sessionId = body.sessionId || body.session_id || 'anon';
+
+  if (!checkRateLimit(sessionId)) {
+    return { error: 'Rate limited. Please wait a moment and try again.' };
+  }
+
+  if (body.type === 'lead') {
+    return saveLead(body);
+  }
+
+  if (!body.message || typeof body.message !== 'string') {
+    return { error: 'Message is required.' };
+  }
+  if (body.message.length > MAX_MESSAGE_LENGTH) {
+    return { error: 'Message too long (max ' + MAX_MESSAGE_LENGTH + ' characters).' };
+  }
+
+  var history = sanitizeWidgetHistory_(body.history);
+  return handleChat(body.message, history);
+}
+
+function sanitizeWidgetHistory_(history) {
+  var clean = [];
+  if (history && Array.isArray(history)) {
+    for (var i = 0; i < Math.min(history.length, MAX_HISTORY_ENTRIES); i++) {
+      var h = history[i];
+      if (h && typeof h.content === 'string' && h.content.length <= MAX_HISTORY_ENTRY_LENGTH) {
+        var role = h.role === 'assistant' ? 'assistant' : 'user';
+        clean.push({ role: role, content: sanitizeHtml(h.content) });
+      }
+    }
+  }
+  return clean;
+}
+
+function serveJsonpApi_(params) {
+  var callback = sanitizeJsonpCallback_(params.callback || '');
+  if (!callback) {
+    return ContentService.createTextOutput('/* Missing callback */')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  var result;
+  try {
+    var body = params.payload ? JSON.parse(params.payload) : {};
+    if (params.api === 'lead') {
+      body.type = 'lead';
+    }
+    result = handleWidgetRequest_(body);
+  } catch (err) {
+    result = { error: err.message || 'Server error.' };
+  }
+
+  return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function sanitizeJsonpCallback_(callback) {
+  callback = String(callback || '');
+  return /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback) ? callback : '';
+}
+
+function serveIframeApi_(params) {
+  var callbackId = sanitizeCallbackId_(params.callbackId || '');
+  if (!callbackId) {
+    return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8">');
+  }
+
+  var result;
+  try {
+    var body = params.payload ? JSON.parse(params.payload) : {};
+    result = handleWidgetRequest_(body);
+  } catch (err) {
+    result = { error: err.message || 'Server error.' };
+  }
+
+  var message = {
+    source: 'SheetsChat',
+    callbackId: callbackId,
+    result: result
+  };
+  var html = '<!doctype html><html><body><script>' +
+    'parent.postMessage(' + safeJsonForScript_(message) + ',"*");' +
+    '</script></body></html>';
+  return HtmlService.createHtmlOutput(html);
+}
+
+function sanitizeCallbackId_(callbackId) {
+  callbackId = String(callbackId || '');
+  return /^[A-Za-z0-9_-]{1,80}$/.test(callbackId) ? callbackId : '';
+}
+
+function safeJsonForScript_(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 // --- Widget JS Server (Task 12) ---
 
 function serveWidget() {
-  var config = getConfig();
+  var config = getConfigInternal_();
   var widgetJs = buildWidgetJS(config);
   return ContentService.createTextOutput(widgetJs)
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -87,7 +170,7 @@ function buildWidgetJS(config) {
   var c = {
     botName: config.botName || 'Assistant',
     botColor: config.botColor || '#3B82F6',
-    endpoint: ScriptApp.getService().getUrl(),
+    endpoint: '',
     welcomeMessage: config.welcomeMessage || '',
     suggestions: suggestions,
     leadCapture: config.leadCaptureEnabled === 'true'
@@ -151,6 +234,9 @@ function buildWidgetJS(config) {
   return '(function(){' +
     'var C=' + json + ';' +
     'var D=document;' +
+    'var currentScript=D.currentScript||function(){var ss=D.getElementsByTagName("script");return ss[ss.length-1];}();' +
+    'var originalSrc=currentScript&&currentScript.src?currentScript.src:"";' +
+    'C.endpoint=originalSrc.split("?")[0];' +
 
     // Inject CSS
     'var s=D.createElement("style");' +
@@ -204,7 +290,8 @@ function buildWidgetJS(config) {
     'D.body.appendChild(root);' +
 
     // State
-    'var isOpen=false;var H=[];var sending=false;var leadDone=false;' +
+    'var isOpen=false;var H=[];var sending=false;var leadDone=false;var lastFailed="";var SID="anon";' +
+    'try{SID=sessionStorage.getItem("cb_sid")||("s_"+Math.random().toString(36).slice(2)+"_"+Date.now().toString(36));sessionStorage.setItem("cb_sid",SID);}catch(e){SID="s_"+Math.random().toString(36).slice(2);}' +
     'try{H=JSON.parse(sessionStorage.getItem("cb_h")||"[]");}catch(e){}' +
     'try{leadDone=!!sessionStorage.getItem("cb_lead");}catch(e){}' +
 
@@ -238,7 +325,7 @@ function buildWidgetJS(config) {
     'if(role==="error"){b.className="cb-err";' +
     'b.textContent=text;' +
     'var rb=D.createElement("button");rb.textContent="Retry";rb.style.cssText="margin-top:6px;padding:4px 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-family:system-ui;";' +
-    'rb.addEventListener("click",function(){b.remove();if(H.length>0){inp.value=H[H.length-1].content;H.pop();send();}});' +
+    'rb.addEventListener("click",function(){b.remove();if(lastFailed){inp.value=lastFailed;send();}});' +
     'b.appendChild(rb);}' +
     'else{b.className=role==="user"?"cb-msg cb-user":"cb-msg cb-bot";b.textContent=text;}' +
     'msgs.appendChild(b);scrollDown();' +
@@ -247,6 +334,20 @@ function buildWidgetJS(config) {
     'function scrollDown(){msgs.scrollTop=msgs.scrollHeight;}' +
     'function showTyping(){typ.style.display="flex";scrollDown();}' +
     'function hideTyping(){typ.style.display="none";}' +
+    'function request(payload,ok,fail){' +
+    'var cb="cb_iframe_"+Date.now()+"_"+Math.random().toString(36).slice(2);' +
+    'var done=false;' +
+    'var timer=setTimeout(function(){if(!done){cleanup();fail(new Error("Request timed out"));}},30000);' +
+    'function onMessage(ev){var data=ev.data||{};if(data.source==="SheetsChat"&&data.callbackId===cb){done=true;cleanup();ok(data.result||{});}}' +
+    'function cleanup(){clearTimeout(timer);window.removeEventListener("message",onMessage);if(form&&form.parentNode){form.parentNode.removeChild(form);}if(frame&&frame.parentNode){frame.parentNode.removeChild(frame);}}' +
+    'window.addEventListener("message",onMessage);' +
+    'var frame=D.createElement("iframe");frame.name=cb;frame.style.display="none";' +
+    'var form=D.createElement("form");form.method="POST";form.action=C.endpoint;form.target=cb;form.style.display="none";' +
+    'function add(name,value){var input=D.createElement("input");input.type="hidden";input.name=name;input.value=value;form.appendChild(input);}' +
+    'add("transport","iframe");add("callbackId",cb);add("payload",JSON.stringify(payload));' +
+    'D.body.appendChild(frame);D.body.appendChild(form);' +
+    'try{form.submit();}catch(e){cleanup();fail(e);}' +
+    '}' +
 
     // Toggle panel
     'function toggle(){' +
@@ -271,10 +372,12 @@ function buildWidgetJS(config) {
     'var n=D.getElementById("cb-lead-name").value.trim();' +
     'var em=D.getElementById("cb-lead-email").value.trim();' +
     'if(!n||!em){alert("Please enter name and email.");return;}' +
-    'fetch(C.endpoint,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({type:"lead",name:n,email:em,source:"widget"})});' +
+    'request({type:"lead",name:n,email:em,source:"widget",sessionId:SID},function(d){' +
+    'if(d.error){alert(d.error);return;}' +
     'leadDone=true;try{sessionStorage.setItem("cb_lead","1");}catch(e){}' +
     'lf.style.display="none";msgs.style.display="flex";inpArea.style.display="flex";' +
     'restoreHistory();' +
+    '},function(){alert("Connection error. Please try again.");});' +
     '};' +
     '}' +
 
@@ -288,21 +391,20 @@ function buildWidgetJS(config) {
     'H.push({role:"user",content:txt});' +
     'showTyping();' +
     'var priorH=[];' +
-    'for(var i=0;i<H.length-1;i++){priorH.push({role:H[i].role,content:H[i].content});}' +
+    'var start=Math.max(0,H.length-7);' +
+    'for(var i=start;i<H.length-1;i++){priorH.push({role:H[i].role,content:String(H[i].content||"").slice(0,800)});}' +
 
-    'fetch(C.endpoint,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({message:txt,history:priorH})})' +
-    '.then(function(r){return r.json();})' +
-    '.then(function(d){' +
+    'request({message:txt,history:priorH,sessionId:SID},function(d){' +
     'hideTyping();' +
-    'if(d.error){appendMsg("error","Error: "+d.error);H.pop();}' +
-    'else{appendMsg("bot",d.response);H.push({role:"assistant",content:d.response});}' +
+    'if(d.error){H.pop();lastFailed=txt;appendMsg("error","Error: "+d.error);}' +
+    'else{lastFailed="";appendMsg("bot",d.response);H.push({role:"assistant",content:d.response});}' +
     'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
     'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
-    '})' +
-    '.catch(function(e){' +
+    '},function(e){' +
     'hideTyping();' +
-    'appendMsg("error","Connection error. Please try again.");' +
     'H.pop();' +
+    'lastFailed=txt;' +
+    'appendMsg("error","Connection error. Please try again.");' +
     'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
     'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
     '});' +
@@ -324,13 +426,14 @@ function buildWidgetJS(config) {
  */
 function checkRateLimit(sessionId) {
   if (!sessionId) sessionId = 'anonymous';
+  sessionId = String(sessionId).replace(/[^A-Za-z0-9_-]/g, '').substring(0, 80) || 'anonymous';
   var cacheKey = 'rl_' + sessionId;
   var cache = CacheService.getScriptCache();
   var countStr = cache.get(cacheKey);
   var count = countStr ? parseInt(countStr, 10) : 0;
-  if (count >= 30) {
+  if (count >= RATE_LIMIT_MAX) {
     return false;
   }
-  cache.put(cacheKey, String(count + 1), 60);
+  cache.put(cacheKey, String(count + 1), RATE_LIMIT_WINDOW);
   return true;
 }
