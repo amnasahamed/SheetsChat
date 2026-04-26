@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — AI Chatbot Builder</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 640px; margin: 40px auto; padding: 20px; color: #1F2937; line-height: 1.7; }
+    h1 { color: #1E40AF; font-size: 24px; margin-bottom: 8px; }
+    h2 { color: #1E40AF; font-size: 18px; margin-top: 32px; }
+    p { margin: 12px 0; }
+    ul { margin: 8px 0; padding-left: 24px; }
+    li { margin: 4px 0; }
+    .updated { color: #6B7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: April 26, 2026</p>
+
+  <h2>What Data We Collect</h2>
+  <p>AI Chatbot Builder stores the following data within your own Google Sheets spreadsheet:</p>
+  <ul>
+    <li><strong>Configuration settings</strong> — Provider, model, system prompt, bot name, colors (stored in Google PropertiesService)</li>
+    <li><strong>Chat logs</strong> — Timestamp, session ID, user messages, AI responses, model used, latency (stored in a "ChatbotLogs" sheet)</li>
+    <li><strong>Lead captures</strong> — Name, email, phone, source (stored in a "Leads" sheet)</li>
+    <li><strong>Knowledge base entries</strong> — Category, question, answer, keywords (stored in a "KnowledgeBase" sheet)</li>
+    <li><strong>API keys</strong> — Your AI provider API key (stored securely in Google ScriptProperties)</li>
+  </ul>
+
+  <h2>How We Store Data</h2>
+  <p>All data is stored within your Google Sheets spreadsheet and Google PropertiesService. We do not operate any external servers or databases. Your data remains within your Google account.</p>
+
+  <h2>Third-Party Services</h2>
+  <p>When you use this add-on, chat messages are sent to your selected AI provider (e.g., OpenAI, Anthropic, Google Gemini). These providers process your messages according to their own privacy policies:</p>
+  <ul>
+    <li><a href="https://openai.com/privacy">OpenAI Privacy Policy</a></li>
+    <li><a href="https://www.anthropic.com/privacy">Anthropic Privacy Policy</a></li>
+    <li><a href="https://policies.google.com/privacy">Google Privacy Policy</a></li>
+  </ul>
+  <p>We do not intercept, log, or share your messages with any party other than the AI provider you select.</p>
+
+  <h2>Data Sharing</h2>
+  <p>We do not sell, share, or transfer your data to any third parties beyond the AI provider you configure.</p>
+
+  <h2>Your Rights</h2>
+  <ul>
+    <li>Delete chat logs by deleting rows from the "ChatbotLogs" sheet</li>
+    <li>Delete leads by deleting rows from the "Leads" sheet</li>
+    <li>Delete knowledge base entries by deleting rows from the "KnowledgeBase" sheet</li>
+    <li>Remove all data by uninstalling the add-on and deleting the associated sheets</li>
+    <li>Reset configuration by using the "Reset to Defaults" button</li>
+  </ul>
+
+  <h2>Widget Visitors</h2>
+  <p>When visitors use the chat widget on your website:</p>
+  <ul>
+    <li>Their messages are sent to your configured AI provider to generate responses</li>
+    <li>Conversation history is stored in their browser's sessionStorage (cleared when they close the tab)</li>
+    <li>If lead capture is enabled, their name and email are stored in your "Leads" sheet</li>
+    <li>We do not use cookies or tracking on the widget</li>
+  </ul>
+
+  <h2>Security</h2>
+  <p>API keys are stored in Google ScriptProperties, which is only accessible by the Apps Script runtime — not by users who open the spreadsheet. We implement rate limiting to prevent abuse of the widget endpoint.</p>
+
+  <h2>Changes</h2>
+  <p>We may update this privacy policy from time to time. Changes will be reflected in the "Last updated" date above.</p>
+
+  <h2>Contact</h2>
+  <p>For privacy-related questions, please contact the add-on developer through the Google Workspace Marketplace listing.</p>
+</body>
+</html>
