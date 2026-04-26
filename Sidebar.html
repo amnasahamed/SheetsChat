@@ -642,7 +642,7 @@
     </div>
 
     <div class="form-group">
-      <label for="apiKey">API Key</label>
+      <label for="apiKey">API Key <a href="https://platform.openai.com/api-keys" target="_blank" style="font-size:10px; font-weight:400; color:#3B82F6; text-decoration:none;">(Where do I get one?)</a></label>
       <div class="api-key-wrapper">
         <input type="password" id="apiKey" placeholder="sk-...">
         <button class="eye-toggle" onclick="toggleApiKey()" title="Show/Hide API Key" aria-label="Toggle API key visibility">&#128065;</button>
@@ -656,6 +656,7 @@
         <button class="chip" onclick="applyTemplate('faq-bot')">FAQ Bot</button>
         <button class="chip" onclick="applyTemplate('personal-assistant')">Personal Assistant</button>
       </div>
+      <div style="font-size:11px; color:#9CA3AF; margin-bottom:4px;">Instructions that guide how the AI responds to messages.</div>
       <textarea id="systemPrompt" rows="3" oninput="updateCharCounter()"></textarea>
       <div class="char-counter" id="charCounter">0 characters</div>
     </div>
@@ -698,18 +699,18 @@
       <summary>Advanced Settings</summary>
       <div class="advanced-content">
         <div class="form-group">
-          <label>Temperature</label>
+          <label>Temperature <span style="font-size:10px; font-weight:400; color:#9CA3AF;">Higher = creative, Lower = focused</span></label>
           <div class="range-row">
             <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" oninput="document.getElementById('tempVal').textContent=this.value">
             <span class="range-value" id="tempVal">0.7</span>
           </div>
         </div>
         <div class="form-group">
-          <label for="maxTokens">Max Tokens</label>
+          <label for="maxTokens">Max Tokens <span style="font-size:10px; font-weight:400; color:#9CA3AF;">Max length of AI responses</span></label>
           <input type="number" id="maxTokens" value="1024" min="1" max="128000">
         </div>
         <div class="form-group">
-          <label>Top P</label>
+          <label>Top P <span style="font-size:10px; font-weight:400; color:#9CA3AF;">Controls response diversity</span></label>
           <div class="range-row">
             <input type="range" id="topP" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('topPVal').textContent=this.value">
             <span class="range-value" id="topPVal">1</span>
