@@ -13,14 +13,14 @@ function onOpen() {
   }
 
   SpreadsheetApp.getUi()
-    .createMenu('Chatbot Builder')
+    .createMenu('SheetsChat')
     .addItem('Open', 'openSidebar')
     .addToUi();
 }
 
 function openSidebar() {
   var html = HtmlService.createHtmlOutputFromFile('Sidebar')
-    .setTitle('Chatbot Builder')
+    .setTitle('SheetsChat')
     .setWidth(350);
   SpreadsheetApp.getUi().showSidebar(html);
 }

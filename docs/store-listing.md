@@ -1,14 +1,14 @@
 # Google Workspace Marketplace Store Listing
 
 ## App Name
-AI Chatbot Builder
+SheetsChat
 
 ## Short Description (132 chars max)
-Add a customizable AI chatbot to any website in minutes. Supports 10+ AI providers. No coding required.
+Add a customizable AI chatbot to any website in minutes. Powered by Sheets. No coding required.
 
 ## Full Description
 
-**AI Chatbot Builder** lets anyone create and deploy a custom AI chatbot widget to their website — directly from Google Sheets.
+**SheetsChat** lets anyone create and deploy a custom AI chatbot widget to their website — directly from Google Sheets.
 
 **How it works:**
 1. **Set up** — Pick an AI provider (OpenAI, Anthropic, Google Gemini, and 7+ more), select a model, paste your API key

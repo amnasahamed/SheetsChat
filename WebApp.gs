@@ -16,10 +16,10 @@ function doGet(e) {
     return serveWidget();
   }
   // Status page
-  var html = '<!DOCTYPE html><html><head><title>Chatbot Builder</title>';
+  var html = '<!DOCTYPE html><html><head><title>SheetsChat</title>';
   html += '<style>body{font-family:system-ui;max-width:600px;margin:40px auto;padding:20px;}';
   html += 'h1{color:#3B82F6;}p{color:#666;}.status{color:#10B981;font-weight:bold;}</style></head><body>';
-  html += '<h1>Chatbot Builder API</h1>';
+  html += '<h1>SheetsChat API</h1>';
   html += '<p class="status">Active</p>';
   html += '<p>Add the embed code to your website to start chatting.</p>';
   html += '</body></html>';
