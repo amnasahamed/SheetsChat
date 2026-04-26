@@ -1,5 +1,7 @@
 function onOpen() {
   ensureConfigSheet();
+  ensureKnowledgeSheet();
+  ensureLeadsSheet();
   SpreadsheetApp.getUi()
     .createMenu('Chatbot Builder')
     .addItem('Open', 'openSidebar')
@@ -15,7 +17,7 @@ function openSidebar() {
 
 var CONFIG_DEFAULTS = {
   provider: 'openai',
-  model: 'gpt-4.1-mini',
+  model: 'gpt-5.5',
   apiKey: '',
   customBaseUrl: '',
   systemPrompt: 'You are a helpful assistant.',
@@ -23,7 +25,10 @@ var CONFIG_DEFAULTS = {
   botColor: '#3B82F6',
   temperature: 0.7,
   maxTokens: 1024,
-  topP: 1.0
+  topP: 1.0,
+  welcomeMessage: 'Hello! How can I help you today?',
+  suggestedQuestions: '',
+  leadCaptureEnabled: 'false'
 };
 
 function getConfig() {
@@ -57,7 +62,6 @@ function ensureConfigSheet() {
   var sheet = ss.getSheetByName('ChatbotConfig');
   if (!sheet) {
     sheet = ss.insertSheet('ChatbotConfig');
-    sheet.hideSheet();
     var headers = ['Key', 'Value'];
     sheet.getRange(1, 1, 1, 2).setValues([headers]);
     sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
@@ -80,6 +84,15 @@ function handleChat(message, history) {
     return { error: 'Please set your API key in the Setup tab.' };
   }
 
+  // Sanitize user message
+  message = sanitizeHtml(message);
+
+  // Inject knowledge base context into system prompt
+  var kbContext = getKnowledgeContext(message);
+  if (kbContext) {
+    config.systemPrompt = (config.systemPrompt || '') + kbContext;
+  }
+
   var startTime = new Date().getTime();
   try {
     var result = callAI(config, message, history);
@@ -87,8 +100,22 @@ function handleChat(message, history) {
     logConversation(message, result.response, result.model, latency);
     return { response: result.response };
   } catch (e) {
-    return { error: 'AI Error: ' + e.message };
+    var errMsg = e.message || '';
+    if (errMsg.indexOf('401') !== -1) {
+      return { error: 'Invalid API key. Check your key in the Setup tab.' };
+    }
+    if (errMsg.indexOf('429') !== -1) {
+      return { error: 'Rate limited by AI provider. Wait a moment and try again.' };
+    }
+    return { error: 'AI Error: ' + errMsg };
   }
+}
+
+/**
+ * Strips HTML tags from a string to prevent injection.
+ */
+function sanitizeHtml(text) {
+  return text.replace(/<[^>]*>/g, '');
 }
 
 // --- Logging ---
@@ -98,7 +125,6 @@ function ensureLogsSheet() {
   var sheet = ss.getSheetByName('ChatbotLogs');
   if (!sheet) {
     sheet = ss.insertSheet('ChatbotLogs');
-    sheet.hideSheet();
     var headers = ['Timestamp', 'Session ID', 'User Message', 'AI Response', 'Model', 'Latency (ms)'];
     sheet.getRange(1, 1, 1, 6).setValues([headers]);
     sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
@@ -125,4 +151,36 @@ function logConversation(userMsg, aiResponse, model, latency) {
 function getEmbedCode() {
   var url = ScriptApp.getService().getUrl();
   return '<script src="' + url + '?widget=true"></script>';
+}
+
+// --- Lead Capture ---
+
+function ensureLeadsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Leads');
+  if (!sheet) {
+    sheet = ss.insertSheet('Leads');
+    var headers = ['Timestamp', 'Name', 'Email', 'Phone', 'Source'];
+    sheet.getRange(1, 1, 1, 5).setValues([headers]);
+    sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 180);
+    sheet.setColumnWidth(2, 150);
+    sheet.setColumnWidth(3, 220);
+    sheet.setColumnWidth(4, 150);
+    sheet.setColumnWidth(5, 100);
+  }
+  return sheet;
+}
+
+function saveLead(data) {
+  var sheet = ensureLeadsSheet();
+  sheet.appendRow([
+    new Date().toISOString(),
+    data.name || '',
+    data.email || '',
+    data.phone || '',
+    data.source || 'sidebar'
+  ]);
+  return { success: true };
 }
