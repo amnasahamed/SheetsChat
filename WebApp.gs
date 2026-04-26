@@ -5,6 +5,12 @@ function corsResponse(content) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+var RATE_LIMIT_MAX = 30;
+var RATE_LIMIT_WINDOW = 60;
+var MAX_MESSAGE_LENGTH = 4000;
+var MAX_HISTORY_ENTRIES = 20;
+var MAX_HISTORY_ENTRY_LENGTH = 2000;
+
 function doGet(e) {
   if (e.parameter && e.parameter.widget === 'true') {
     return serveWidget();
@@ -229,7 +235,11 @@ function buildWidgetJS(config) {
     // Append message bubble
     'function appendMsg(role,text){' +
     'var b=D.createElement("div");' +
-    'if(role==="error"){b.className="cb-err";b.textContent=text;}' +
+    'if(role==="error"){b.className="cb-err";' +
+    'b.textContent=text;' +
+    'var rb=D.createElement("button");rb.textContent="Retry";rb.style.cssText="margin-top:6px;padding:4px 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-family:system-ui;";' +
+    'rb.addEventListener("click",function(){b.remove();if(H.length>0){inp.value=H[H.length-1].content;H.pop();send();}});' +
+    'b.appendChild(rb);}' +
     'else{b.className=role==="user"?"cb-msg cb-user":"cb-msg cb-bot";b.textContent=text;}' +
     'msgs.appendChild(b);scrollDown();' +
     '}' +
