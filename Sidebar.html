@@ -765,7 +765,9 @@
   <!-- ==================== DEPLOY TAB ==================== -->
   <div id="tab-deploy" class="tab-content">
 
-    <div class="deploy-section">
+    <div id="deploySaveHint" style="display:none; background:#FEF3C7; border:1px solid #FCD34D; border-radius:8px; padding:12px; margin-bottom:16px; font-size:12px; color:#92400E;">
+      Save your configuration in the <strong>Setup</strong> tab before deploying.
+    </div>    <div class="deploy-section">
       <h3><span class="step-num">1</span> Generate Your Widget</h3>
       <p class="deploy-hint">Make sure you've saved your config first, then click below.</p>
       <button class="btn btn-primary btn-block" onclick="generateEmbed()" style="padding:11px 16px; font-size:14px;">🚀 Generate Embed Code</button>
@@ -906,6 +908,8 @@
       }
       if (tab === 'deploy') {
         updatePreview();
+        var hasKey = document.getElementById('apiKey').getAttribute('data-masked');
+        document.getElementById('deploySaveHint').style.display = hasKey ? 'none' : 'block';
       }
     }
 
