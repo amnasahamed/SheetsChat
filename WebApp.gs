@@ -20,23 +20,25 @@ function doGet(e) {
     return serveJsonpApi_(params);
   }
   // Status page
-  var html = '<!DOCTYPE html><html><head><title>SheetsChat</title>';
-  html += '<style>body{font-family:system-ui;max-width:680px;margin:40px auto;padding:20px;color:#0F172A;}';
-  html += 'h1{color:#3B82F6;}p{color:#475569;line-height:1.6}.status{color:#10B981;font-weight:bold;}';
-  html += 'pre{white-space:pre-wrap;word-break:break-all;background:#0F172A;color:#E2E8F0;padding:14px;border-radius:8px;}';
-  html += 'button{background:#3B82F6;color:#fff;border:0;border-radius:6px;padding:10px 14px;font-weight:600;cursor:pointer;}</style></head><body>';
-  html += '<h1>SheetsChat API</h1>';
-  html += '<p class="status">Active</p>';
-  html += '<p>Copy this widget code into your website.</p>';
-  html += '<pre id="embed"></pre>';
-  html += '<button onclick="copyEmbed()">Copy widget code</button>';
-  html += '<script>';
-  html += 'var base=location.href.split("?")[0].split("#")[0];';
-  html += 'var code="<script src=\\"" + base + "?widget=true\\"><\\/script>";';
-  html += 'document.getElementById("embed").textContent=code;';
-  html += 'function copyEmbed(){navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code):null;}';
-  html += '</script>';
-  html += '</body></html>';
+  var html = [
+    '<!DOCTYPE html><html><head><title>SheetsChat</title>',
+    '<style>body{font-family:system-ui;max-width:680px;margin:40px auto;padding:20px;color:#0F172A;}',
+    'h1{color:#3B82F6;}p{color:#475569;line-height:1.6}.status{color:#10B981;font-weight:bold;}',
+    'pre{white-space:pre-wrap;word-break:break-all;background:#0F172A;color:#E2E8F0;padding:14px;border-radius:8px;}',
+    'button{background:#3B82F6;color:#fff;border:0;border-radius:6px;padding:10px 14px;font-weight:600;cursor:pointer;}</style></head><body>',
+    '<h1>SheetsChat API</h1>',
+    '<p class="status">Active</p>',
+    '<p>Copy this widget code into your website.</p>',
+    '<pre id="embed"></pre>',
+    '<button onclick="copyEmbed()">Copy widget code</button>',
+    '<script>',
+    'var base=location.href.split("?")[0].split("#")[0];',
+    'var code="<script src=\\"" + base + "?widget=true\\"><\\/script>";',
+    'document.getElementById("embed").textContent=code;',
+    'function copyEmbed(){navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(code):null;}',
+    '</script>',
+    '</body></html>'
+  ].join('');
   return HtmlService.createHtmlOutput(html);
 }
 
