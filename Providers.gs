@@ -100,14 +100,10 @@ var PROVIDERS = {
 
 /**
  * Returns provider names and available models for UI population.
- * @returns {Object} Map of provider key -> { name, models }
+ * @returns {Object} Map of provider key -> Provider details
  */
 function getProviders() {
-  var result = {};
-  for (var key in PROVIDERS) {
-    result[key] = { name: PROVIDERS[key].name, models: PROVIDERS[key].models };
-  }
-  return result;
+  return PROVIDERS;
 }
 
 /**
