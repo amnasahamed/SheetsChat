@@ -980,7 +980,7 @@
             var time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             html += '<div style="padding:10px 0; border-bottom:1px solid #F1F5F9; display:flex; justify-content:space-between; align-items:center;">';
             html += '<div><div style="font-weight:600; color:#1E293B; margin-bottom:2px;">User: ' + escapeHtml(log.userMsg.substring(0, 30)) + (log.userMsg.length > 30 ? '...' : '') + '</div>';
-            html += '<div style="font-size:10px; color:#94A3B8;">' + time + ' • ' + log.model + '</div></div>';
+            html += '<div style="font-size:10px; color:#94A3B8;">' + time + ' • ' + escapeHtml(log.model) + '</div></div>';
             html += '</div>';
           }
           activityEl.innerHTML = html;
