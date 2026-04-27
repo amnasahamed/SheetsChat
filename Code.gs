@@ -297,29 +297,38 @@ function getDashboardData() {
   var kbEntries = getKnowledgeEntries();
 
   var leadsSheet = ensureLeadsSheet();
-  var leadsData = leadsSheet.getDataRange().getValues();
-  var leadCount = leadsData.length - 1;
-  if (leadCount < 0) leadCount = 0;
+  var leadLastRow = leadsSheet.getLastRow();
+  var leadCount = leadLastRow > 1 ? leadLastRow - 1 : 0;
 
   var recentLeads = [];
-  // Get last 3 leads
-  for (var j = leadsData.length - 1; j >= 1 && recentLeads.length < 3; j--) {
-    recentLeads.push({
-      name: leadsData[j][1],
-      email: leadsData[j][2]
-    });
+  if (leadCount > 0) {
+    var numLeadsToFetch = Math.min(3, leadCount);
+    var startRow = leadLastRow - numLeadsToFetch + 1;
+    // Fetch only the rows we need: startRow, 1st column, num rows, 5 columns total
+    var leadsData = leadsSheet.getRange(startRow, 1, numLeadsToFetch, 5).getValues();
+    for (var j = leadsData.length - 1; j >= 0; j--) {
+      recentLeads.push({
+        name: leadsData[j][1],
+        email: leadsData[j][2]
+      });
+    }
   }
 
   var logsSheet = ensureLogsSheet();
-  var logsData = logsSheet.getDataRange().getValues();
+  var logLastRow = logsSheet.getLastRow();
   var recentLogs = [];
-  // Get last 5 logs (skipping header)
-  for (var i = logsData.length - 1; i >= 1 && recentLogs.length < 5; i--) {
-    recentLogs.push({
-      timestamp: logsData[i][0],
-      userMsg: logsData[i][2],
-      model: logsData[i][4]
-    });
+  if (logLastRow > 1) {
+    var numLogsToFetch = Math.min(5, logLastRow - 1);
+    var startLogRow = logLastRow - numLogsToFetch + 1;
+    // Fetch only the rows we need: startLogRow, 1st column, num rows, 6 columns total
+    var logsData = logsSheet.getRange(startLogRow, 1, numLogsToFetch, 6).getValues();
+    for (var i = logsData.length - 1; i >= 0; i--) {
+      recentLogs.push({
+        timestamp: logsData[i][0],
+        userMsg: logsData[i][2],
+        model: logsData[i][4]
+      });
+    }
   }
 
   return {
