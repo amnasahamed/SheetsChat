@@ -4,8 +4,8 @@
  * Creates the KnowledgeBase sheet if it doesn't exist.
  * Columns: Category | Question | Answer | Keywords
  */
-function ensureKnowledgeSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureKnowledgeSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('KnowledgeBase');
   if (!sheet) {
     sheet = ss.insertSheet('KnowledgeBase');

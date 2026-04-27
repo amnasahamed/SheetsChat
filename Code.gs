@@ -1,7 +1,8 @@
 function onOpen() {
-  ensureConfigSheet();
-  ensureKnowledgeSheet();
-  ensureLeadsSheet();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  ensureConfigSheet(ss);
+  ensureKnowledgeSheet(ss);
+  ensureLeadsSheet(ss);
 
   // Migrate API key from DocumentProperties to ScriptProperties (one-time)
   var docProps = PropertiesService.getDocumentProperties();
@@ -106,8 +107,8 @@ function resetConfig() {
   return { success: true, config: getConfig() };
 }
 
-function ensureConfigSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureConfigSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('ChatbotConfig');
   if (!sheet) {
     sheet = ss.insertSheet('ChatbotConfig');
@@ -190,8 +191,8 @@ function sanitizeHistory_(history) {
 
 // --- Logging ---
 
-function ensureLogsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureLogsSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('ChatbotLogs');
   if (!sheet) {
     sheet = ss.insertSheet('ChatbotLogs');
@@ -258,8 +259,8 @@ function escapeHtmlAttribute_(value) {
 
 // --- Lead Capture ---
 
-function ensureLeadsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureLeadsSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Leads');
   if (!sheet) {
     sheet = ss.insertSheet('Leads');
