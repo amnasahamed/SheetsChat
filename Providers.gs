@@ -154,12 +154,22 @@ function callAI(config, message, history) {
   var headers = {};
   var payload = {};
 
+  var params = {
+    providerKey: providerKey,
+    model: model,
+    messages: messages,
+    systemPrompt: systemPrompt,
+    temperature: temperature,
+    maxTokens: maxTokens,
+    topP: topP
+  };
+
   if (provider.bodyFormat === 'openai') {
-    payload = buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperature, maxTokens, topP);
+    payload = buildOpenAIPayload(params);
     headers = buildAuthHeaders(provider, apiKey);
     headers['Content-Type'] = 'application/json';
   } else if (provider.bodyFormat === 'anthropic') {
-    payload = buildAnthropicPayload(model, messages, systemPrompt, temperature, maxTokens, topP);
+    payload = buildAnthropicPayload(params);
     headers = buildAuthHeaders(provider, apiKey);
     headers['Content-Type'] = 'application/json';
     // Add extra headers (anthropic-version etc.)
@@ -170,11 +180,11 @@ function callAI(config, message, history) {
     }
   } else if (provider.bodyFormat === 'gemini') {
     url = baseUrl.replace('{model}', encodeURIComponent(model)).replace('{apiKey}', encodeURIComponent(apiKey));
-    payload = buildGeminiPayload(messages, systemPrompt, temperature, maxTokens, topP);
+    payload = buildGeminiPayload(params);
     headers['Content-Type'] = 'application/json';
     // Gemini auth is via URL param, no auth header
   } else if (provider.bodyFormat === 'cohere') {
-    payload = buildCoherePayload(model, messages, systemPrompt, temperature, maxTokens, topP);
+    payload = buildCoherePayload(params);
     headers = buildAuthHeaders(provider, apiKey);
     headers['Content-Type'] = 'application/json';
   }
@@ -207,25 +217,26 @@ function callAI(config, message, history) {
 /**
  * Builds OpenAI-compatible request payload.
  * Used by: openai, openrouter, groq, mistral, deepseek, together, fireworks, custom
+ * @param {Object} params Request parameters object
  */
-function buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperature, maxTokens, topP) {
+function buildOpenAIPayload(params) {
   var allMessages = [];
-  if (systemPrompt) {
-    allMessages.push({ role: 'system', content: systemPrompt });
+  if (params.systemPrompt) {
+    allMessages.push({ role: 'system', content: params.systemPrompt });
   }
-  for (var i = 0; i < messages.length; i++) {
-    allMessages.push({ role: messages[i].role, content: messages[i].content });
+  for (var i = 0; i < params.messages.length; i++) {
+    allMessages.push({ role: params.messages[i].role, content: params.messages[i].content });
   }
   var payload = {
-    model: model,
+    model: params.model,
     messages: allMessages,
-    temperature: temperature,
-    top_p: topP
+    temperature: params.temperature,
+    top_p: params.topP
   };
-  if (providerKey === 'openai') {
-    payload.max_completion_tokens = maxTokens;
+  if (params.providerKey === 'openai') {
+    payload.max_completion_tokens = params.maxTokens;
   } else {
-    payload.max_tokens = maxTokens;
+    payload.max_tokens = params.maxTokens;
   }
   return payload;
 }
@@ -233,26 +244,27 @@ function buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperat
 /**
  * Builds Anthropic request payload.
  * System prompt is a top-level param, not in messages array.
+ * @param {Object} params Request parameters object
  */
-function buildAnthropicPayload(model, messages, systemPrompt, temperature, maxTokens, topP) {
+function buildAnthropicPayload(params) {
   // Anthropic uses assistant/user roles, filter out system from messages
   var chatMessages = [];
-  for (var i = 0; i < messages.length; i++) {
-    if (messages[i].role !== 'system') {
-      chatMessages.push({ role: messages[i].role, content: messages[i].content });
+  for (var i = 0; i < params.messages.length; i++) {
+    if (params.messages[i].role !== 'system') {
+      chatMessages.push({ role: params.messages[i].role, content: params.messages[i].content });
     }
   }
   var payload = {
-    model: model,
+    model: params.model,
     messages: chatMessages,
-    max_tokens: maxTokens,
-    temperature: temperature
+    max_tokens: params.maxTokens,
+    temperature: params.temperature
   };
-  if (model !== 'claude-opus-4-1-20250805') {
-    payload.top_p = topP;
+  if (params.model !== 'claude-opus-4-1-20250805') {
+    payload.top_p = params.topP;
   }
-  if (systemPrompt) {
-    payload.system = systemPrompt;
+  if (params.systemPrompt) {
+    payload.system = params.systemPrompt;
   }
   return payload;
 }
@@ -260,27 +272,28 @@ function buildAnthropicPayload(model, messages, systemPrompt, temperature, maxTo
 /**
  * Builds Google Gemini request payload.
  * Uses contents/parts format instead of messages.
+ * @param {Object} params Request parameters object
  */
-function buildGeminiPayload(messages, systemPrompt, temperature, maxTokens, topP) {
+function buildGeminiPayload(params) {
   var contents = [];
-  for (var i = 0; i < messages.length; i++) {
-    var role = messages[i].role === 'assistant' ? 'model' : 'user';
+  for (var i = 0; i < params.messages.length; i++) {
+    var role = params.messages[i].role === 'assistant' ? 'model' : 'user';
     contents.push({
       role: role,
-      parts: [{ text: messages[i].content }]
+      parts: [{ text: params.messages[i].content }]
     });
   }
   var payload = {
     contents: contents,
     generationConfig: {
-      temperature: temperature,
-      maxOutputTokens: maxTokens,
-      topP: topP
+      temperature: params.temperature,
+      maxOutputTokens: params.maxTokens,
+      topP: params.topP
     }
   };
-  if (systemPrompt) {
+  if (params.systemPrompt) {
     payload.systemInstruction = {
-      parts: [{ text: systemPrompt }]
+      parts: [{ text: params.systemPrompt }]
     };
   }
   return payload;
@@ -289,21 +302,22 @@ function buildGeminiPayload(messages, systemPrompt, temperature, maxTokens, topP
 /**
  * Builds Cohere v2 request payload.
  * v2 uses OpenAI-style messages format with system/user/assistant roles.
+ * @param {Object} params Request parameters object
  */
-function buildCoherePayload(model, messages, systemPrompt, temperature, maxTokens, topP) {
+function buildCoherePayload(params) {
   var allMessages = [];
-  if (systemPrompt) {
-    allMessages.push({ role: 'system', content: systemPrompt });
+  if (params.systemPrompt) {
+    allMessages.push({ role: 'system', content: params.systemPrompt });
   }
-  for (var i = 0; i < messages.length; i++) {
-    allMessages.push({ role: messages[i].role, content: messages[i].content });
+  for (var i = 0; i < params.messages.length; i++) {
+    allMessages.push({ role: params.messages[i].role, content: params.messages[i].content });
   }
 
   var payload = {
-    model: model,
+    model: params.model,
     messages: allMessages,
-    temperature: temperature,
-    max_tokens: maxTokens
+    temperature: params.temperature,
+    max_tokens: params.maxTokens
   };
   return payload;
 }
