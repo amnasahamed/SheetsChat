@@ -108,7 +108,7 @@ function serveJsonpApi_(params) {
     result = { error: err.message || 'Server error.' };
   }
 
-  return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ');')
+  return ContentService.createTextOutput(callback + '(' + safeJsonForScript_(result) + ');')
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
@@ -175,7 +175,7 @@ function buildWidgetJS(config) {
     suggestions: suggestions,
     leadCapture: config.leadCaptureEnabled === 'true'
   };
-  var json = JSON.stringify(c);
+  var json = safeJsonForScript_(c);
 
   var css = [
     '#cb-root *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif;}',
@@ -240,7 +240,7 @@ function buildWidgetJS(config) {
 
     // Inject CSS
     'var s=D.createElement("style");' +
-    's.textContent=' + JSON.stringify(css) + ';' +
+    's.textContent=' + safeJsonForScript_(css) + ';' +
     'D.head.appendChild(s);' +
 
     // Create root
