@@ -46,9 +46,10 @@ function getConfigInternal_() {
   var props = PropertiesService.getDocumentProperties();
   var scriptProps = PropertiesService.getScriptProperties();
   var config = {};
+  var allProps = props.getProperties() || {};
   for (var key in CONFIG_DEFAULTS) {
-    var val = props.getProperty(key);
-    config[key] = val !== null ? val : CONFIG_DEFAULTS[key];
+    var val = allProps[key];
+    config[key] = (val !== undefined && val !== null) ? val : CONFIG_DEFAULTS[key];
   }
   // API key comes from ScriptProperties (more secure)
   var apiKey = scriptProps.getProperty('apiKey');
