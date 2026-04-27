@@ -131,16 +131,21 @@ function _tokenize(text) {
     .filter(function(w) { return w.length > 1 && _STOP_WORDS.indexOf(w) === -1; });
 }
 
+function _getKeywordScore(word, keywordList) {
+  for (var k = 0; k < keywordList.length; k++) {
+    if (keywordList[k] === word) { return 5; }
+    if (keywordList[k].length > 3 && keywordList[k].indexOf(word) !== -1) { return 2; }
+  }
+  return 0;
+}
+
 function _computeRelevance(userWords, question, answer, keywords) {
   var score = 0;
   var keywordList = keywords.split(/[,\s]+/);
 
   for (var i = 0; i < userWords.length; i++) {
     var word = userWords[i];
-    for (var k = 0; k < keywordList.length; k++) {
-      if (keywordList[k] === word) { score += 5; break; }
-      if (keywordList[k].length > 3 && keywordList[k].indexOf(word) !== -1) { score += 2; break; }
-    }
+    score += _getKeywordScore(word, keywordList);
     if (question.indexOf(word) !== -1) score += 3;
     if (answer.indexOf(word) !== -1) score += 1;
   }
