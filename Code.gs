@@ -162,15 +162,16 @@ function handleChat(message, history) {
 }
 
 /**
- * Strips HTML tags from a string to prevent injection.
+ * Escapes HTML characters in a string to prevent injection.
  */
 function sanitizeHtml(text) {
   if (text === undefined || text === null) return '';
   return String(text)
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/javascript:/gi, '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
     .trim();
 }
 
