@@ -276,15 +276,24 @@ function ensureLeadsSheet() {
   return sheet;
 }
 
+function preventFormulaInjection_(text) {
+  if (!text) return text;
+  var firstChar = String(text).charAt(0);
+  if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
+    return "'" + text;
+  }
+  return text;
+}
+
 function saveLead(data) {
   var sheet = ensureLeadsSheet();
   data = data || {};
   sheet.appendRow([
     new Date().toISOString(),
-    sanitizeHtml(data.name || '').substring(0, 200),
-    sanitizeHtml(data.email || '').substring(0, 320),
-    sanitizeHtml(data.phone || '').substring(0, 50),
-    sanitizeHtml(data.source || 'sidebar').substring(0, 50)
+    preventFormulaInjection_(sanitizeHtml(data.name || '').substring(0, 200)),
+    preventFormulaInjection_(sanitizeHtml(data.email || '').substring(0, 320)),
+    preventFormulaInjection_(sanitizeHtml(data.phone || '').substring(0, 50)),
+    preventFormulaInjection_(sanitizeHtml(data.source || 'sidebar').substring(0, 50))
   ]);
   return { success: true };
 }
