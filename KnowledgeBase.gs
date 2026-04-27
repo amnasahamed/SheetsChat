@@ -131,6 +131,11 @@ function _tokenize(text) {
     .filter(function(w) { return w.length > 1 && _STOP_WORDS.indexOf(w) === -1; });
 }
 
+/**
+ * Computes the relevance score of user words against the question, answer, and keywords.
+ * Awards points based on match type (exact keywords = 5, partial keywords = 2,
+ * question match = 3, answer match = 1) plus a multi-word bonus.
+ */
 function _computeRelevance(userWords, question, answer, keywords) {
   var score = 0;
   var keywordList = keywords.split(/[,\s]+/);
@@ -153,4 +158,12 @@ function _computeRelevance(userWords, question, answer, keywords) {
   if (matchCount >= 2) score += matchCount * 2;
 
   return score;
+}
+
+// For testing
+if (typeof module !== 'undefined') {
+  module.exports = {
+    _computeRelevance,
+    _tokenize
+  };
 }
