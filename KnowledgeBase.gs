@@ -5,27 +5,24 @@
  * Columns: Category | Question | Answer | Keywords
  */
 function ensureKnowledgeSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('KnowledgeBase');
-  if (!sheet) {
-    sheet = ss.insertSheet('KnowledgeBase');
-    var headers = ['Category', 'Question', 'Answer', 'Keywords'];
-    sheet.getRange(1, 1, 1, 4).setValues([headers]);
-    sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1, 120);
-    sheet.setColumnWidth(2, 250);
-    sheet.setColumnWidth(3, 400);
-    sheet.setColumnWidth(4, 200);
-    // Example entries
-    var examples = [
-      ['Getting Started', 'How do I customize this chatbot?', 'Replace these sample rows with your own questions, answers, and keywords. The chatbot will use this sheet as its knowledge base.', 'customize,setup,knowledge,questions,answers'],
-      ['Getting Started', 'What should I add to the knowledge base?', 'Add accurate details about your business, such as hours, pricing, support contacts, policies, product details, and common customer questions.', 'business,hours,pricing,support,faq,policies'],
-      ['Getting Started', 'How does keyword matching work?', 'Add comma-separated keywords that visitors might use. More specific keywords help the chatbot find the most relevant answer.', 'keywords,matching,relevance,search']
-    ];
-    sheet.getRange(2, 1, examples.length, 4).setValues(examples);
-  }
-  return sheet;
+  return ensureSheetExists_(
+    'KnowledgeBase',
+    ['Category', 'Question', 'Answer', 'Keywords'],
+    function(sheet) {
+      sheet.setFrozenRows(1);
+      sheet.setColumnWidth(1, 120);
+      sheet.setColumnWidth(2, 250);
+      sheet.setColumnWidth(3, 400);
+      sheet.setColumnWidth(4, 200);
+      // Example entries
+      var examples = [
+        ['Getting Started', 'How do I customize this chatbot?', 'Replace these sample rows with your own questions, answers, and keywords. The chatbot will use this sheet as its knowledge base.', 'customize,setup,knowledge,questions,answers'],
+        ['Getting Started', 'What should I add to the knowledge base?', 'Add accurate details about your business, such as hours, pricing, support contacts, policies, product details, and common customer questions.', 'business,hours,pricing,support,faq,policies'],
+        ['Getting Started', 'How does keyword matching work?', 'Add comma-separated keywords that visitors might use. More specific keywords help the chatbot find the most relevant answer.', 'keywords,matching,relevance,search']
+      ];
+      sheet.getRange(2, 1, examples.length, 4).setValues(examples);
+    }
+  );
 }
 
 /**

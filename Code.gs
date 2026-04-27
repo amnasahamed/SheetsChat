@@ -1,7 +1,7 @@
 function onOpen() {
   ensureConfigSheet();
-  ensureKnowledgeSheet();
-  ensureLeadsSheet();
+  void ensureKnowledgeSheet();
+  void ensureLeadsSheet();
 
   // Migrate API key from DocumentProperties to ScriptProperties (one-time)
   var docProps = PropertiesService.getDocumentProperties();
@@ -106,14 +106,28 @@ function resetConfig() {
   return { success: true, config: getConfig() };
 }
 
-function ensureConfigSheet() {
+/**
+ * Centralized internal helper function to handle common logic for sheet existence checks,
+ * creation, header initialization, and custom configuration callbacks.
+ */
+function ensureSheetExists_(name, headers, setupCallback) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('ChatbotConfig');
+  var sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet('ChatbotConfig');
-    var headers = ['Key', 'Value'];
-    sheet.getRange(1, 1, 1, 2).setValues([headers]);
-    sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+    sheet = ss.insertSheet(name);
+    if (headers && headers.length > 0) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    }
+    if (typeof setupCallback === 'function') {
+      setupCallback(sheet);
+    }
+  }
+  return sheet;
+}
+
+function ensureConfigSheet() {
+  ensureSheetExists_('ChatbotConfig', ['Key', 'Value'], function(sheet) {
     var defaults = [];
     for (var key in CONFIG_DEFAULTS) {
       defaults.push([key, String(CONFIG_DEFAULTS[key])]);
@@ -121,8 +135,7 @@ function ensureConfigSheet() {
     if (defaults.length > 0) {
       sheet.getRange(2, 1, defaults.length, 2).setValues(defaults);
     }
-  }
-  return sheet;
+  });
 }
 
 // --- Chat Handler ---
@@ -191,16 +204,13 @@ function sanitizeHistory_(history) {
 // --- Logging ---
 
 function ensureLogsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('ChatbotLogs');
-  if (!sheet) {
-    sheet = ss.insertSheet('ChatbotLogs');
-    var headers = ['Timestamp', 'Session ID', 'User Message', 'AI Response', 'Model', 'Latency (ms)'];
-    sheet.getRange(1, 1, 1, 6).setValues([headers]);
-    sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
+  return ensureSheetExists_(
+    'ChatbotLogs',
+    ['Timestamp', 'Session ID', 'User Message', 'AI Response', 'Model', 'Latency (ms)'],
+    function(sheet) {
+      sheet.setFrozenRows(1);
+    }
+  );
 }
 
 function logConversation(userMsg, aiResponse, model, latency) {
@@ -259,21 +269,18 @@ function escapeHtmlAttribute_(value) {
 // --- Lead Capture ---
 
 function ensureLeadsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Leads');
-  if (!sheet) {
-    sheet = ss.insertSheet('Leads');
-    var headers = ['Timestamp', 'Name', 'Email', 'Phone', 'Source'];
-    sheet.getRange(1, 1, 1, 5).setValues([headers]);
-    sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-    sheet.setColumnWidth(1, 180);
-    sheet.setColumnWidth(2, 150);
-    sheet.setColumnWidth(3, 220);
-    sheet.setColumnWidth(4, 150);
-    sheet.setColumnWidth(5, 100);
-  }
-  return sheet;
+  return ensureSheetExists_(
+    'Leads',
+    ['Timestamp', 'Name', 'Email', 'Phone', 'Source'],
+    function(sheet) {
+      sheet.setFrozenRows(1);
+      sheet.setColumnWidth(1, 180);
+      sheet.setColumnWidth(2, 150);
+      sheet.setColumnWidth(3, 220);
+      sheet.setColumnWidth(4, 150);
+      sheet.setColumnWidth(5, 100);
+    }
+  );
 }
 
 function saveLead(data) {
