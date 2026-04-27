@@ -4,8 +4,8 @@
  * Creates the KnowledgeBase sheet if it doesn't exist.
  * Columns: Category | Question | Answer | Keywords
  */
-function ensureKnowledgeSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureKnowledgeSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('KnowledgeBase');
   if (!sheet) {
     sheet = ss.insertSheet('KnowledgeBase');
@@ -31,8 +31,8 @@ function ensureKnowledgeSheet() {
 /**
  * Returns all knowledge base entries for the sidebar UI.
  */
-function getKnowledgeEntries() {
-  var sheet = ensureKnowledgeSheet();
+function getKnowledgeEntries(ss) {
+  var sheet = ensureKnowledgeSheet(ss);
   var data = sheet.getDataRange().getValues();
   var entries = [];
   for (var i = 1; i < data.length; i++) {

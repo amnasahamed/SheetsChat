@@ -190,8 +190,8 @@ function sanitizeHistory_(history) {
 
 // --- Logging ---
 
-function ensureLogsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureLogsSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('ChatbotLogs');
   if (!sheet) {
     sheet = ss.insertSheet('ChatbotLogs');
@@ -258,8 +258,8 @@ function escapeHtmlAttribute_(value) {
 
 // --- Lead Capture ---
 
-function ensureLeadsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+function ensureLeadsSheet(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Leads');
   if (!sheet) {
     sheet = ss.insertSheet('Leads');
@@ -294,9 +294,10 @@ function saveLead(data) {
  */
 function getDashboardData() {
   var config = getConfigInternal_();
-  var kbEntries = getKnowledgeEntries();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var kbEntries = getKnowledgeEntries(ss);
 
-  var leadsSheet = ensureLeadsSheet();
+  var leadsSheet = ensureLeadsSheet(ss);
   var leadsData = leadsSheet.getDataRange().getValues();
   var leadCount = leadsData.length - 1;
   if (leadCount < 0) leadCount = 0;
@@ -310,7 +311,7 @@ function getDashboardData() {
     });
   }
 
-  var logsSheet = ensureLogsSheet();
+  var logsSheet = ensureLogsSheet(ss);
   var logsData = logsSheet.getDataRange().getValues();
   var recentLogs = [];
   // Get last 5 logs (skipping header)
