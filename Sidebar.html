@@ -736,6 +736,12 @@
     </div>
 
     <div class="form-group">
+      <label for="allowedDomains">Allowed Widget Domains</label>
+      <input type="text" id="allowedDomains" placeholder="example.com, www.example.com">
+      <small>Comma-separated domains allowed to embed the widget. Leave empty to allow all.</small>
+    </div>
+
+    <div class="form-group">
       <label>Bot Color</label>
       <div class="color-swatches">
         <div class="color-swatch selected" style="background:#3B82F6" data-color="#3B82F6" onclick="selectColor(this)"></div>
@@ -1095,6 +1101,7 @@
       document.getElementById('welcomeMessage').value = config.welcomeMessage || '';
       document.getElementById('suggestedQuestions').value = (config.suggestedQuestions || '').replace(/,/g, '\n');
       document.getElementById('leadCaptureEnabled').checked = config.leadCaptureEnabled === 'true';
+      document.getElementById('allowedDomains').value = config.allowedDomains || '';
 
       var showWelcome = !hasApiKey;
       try { showWelcome = showWelcome && !localStorage.getItem('cb_welcome_dismissed'); } catch(e) {}
@@ -1213,7 +1220,8 @@
         topP: document.getElementById('topP').value,
         welcomeMessage: document.getElementById('welcomeMessage').value,
         suggestedQuestions: document.getElementById('suggestedQuestions').value.split('\n').filter(function(s){return s.trim();}).join(','),
-        leadCaptureEnabled: document.getElementById('leadCaptureEnabled').checked ? 'true' : 'false'
+        leadCaptureEnabled: document.getElementById('leadCaptureEnabled').checked ? 'true' : 'false',
+        allowedDomains: document.getElementById('allowedDomains').value.trim()
       };
 
       google.script.run

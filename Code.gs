@@ -39,7 +39,8 @@ var CONFIG_DEFAULTS = {
   topP: 1.0,
   welcomeMessage: 'Hello! How can I help you today?',
   suggestedQuestions: '',
-  leadCaptureEnabled: 'false'
+  leadCaptureEnabled: 'false',
+  allowedDomains: ''
 };
 
 function getConfigInternal_() {
@@ -135,6 +136,7 @@ function handleChat(message, history) {
 
   // Sanitize user message
   message = sanitizeHtml(message);
+  message = sanitizePromptInjection_(message);
   history = sanitizeHistory_(history);
 
   // Inject knowledge base context into system prompt
@@ -156,6 +158,11 @@ function handleChat(message, history) {
     }
     if (errMsg.indexOf('429') !== -1) {
       return { error: 'Rate limited by AI provider. Wait a moment and try again.' };
+    }
+    // Wrap parse errors with generic message (don't leak provider details)
+    if (errMsg.indexOf('Unexpected') !== -1 && errMsg.indexOf('response format') !== -1) {
+      console.error('Parse error (details logged): ' + errMsg);
+      return { error: 'The AI service returned an unexpected response. Please try again.' };
     }
     return { error: 'AI Error: ' + errMsg };
   }
@@ -186,6 +193,40 @@ function sanitizeHistory_(history) {
     }
   }
   return clean;
+}
+
+/**
+ * Filters common prompt injection patterns from user messages.
+ * Strips attempts to override system instructions.
+ */
+function sanitizePromptInjection_(text) {
+  if (!text) return text;
+  var cleaned = text;
+  // Strip common system-prompt override patterns (case-insensitive)
+  var patterns = [
+    /ignore\s+(all\s+)?previous\s+instructions?/gi,
+    /ignore\s+(all\s+)?prior\s+instructions?/gi,
+    /you\s+are\s+now\s+/gi,
+    /system\s*:/gi,
+    /(\[|\()<\|?(system|assistant)(\]|\))/gi,
+    /<\|?(system|assistant)\|?>/gi,
+    /forget\s+(all\s+)?(your|previous|prior)\s+/gi,
+    /new\s+instructions?\s*:/gi,
+    /disregard\s+(all\s+)?(previous|prior|above)\s+/gi,
+    /override\s+(your|the)\s+(system|previous|prior)\s+/gi,
+    /pretend\s+you\s+are\s+/gi,
+    /act\s+as\s+if\s+you\s+(are|were)\s+/gi,
+    /from\s+now\s+on\s*[,]\s*you\s+are\s+/gi,
+    /simulate\s+(being|a|an)\s+/gi,
+    /jailbreak/gi,
+    /DAN\s+mode/gi,
+    /developer\s+mode/gi,
+    /\/(?:system|assistant|override)/gi
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    cleaned = cleaned.replace(patterns[i], '');
+  }
+  return cleaned;
 }
 
 // --- Logging ---

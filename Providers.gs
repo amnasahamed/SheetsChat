@@ -146,7 +146,11 @@ function callAI(config, message, history) {
   // Determine base URL (custom provider uses config.customBaseUrl)
   var baseUrl = provider.baseUrl;
   if (providerKey === 'custom' && config.customBaseUrl) {
-    baseUrl = config.customBaseUrl;
+    baseUrl = String(config.customBaseUrl).trim();
+    // Reject non-HTTPS URLs to prevent SSRF
+    if (baseUrl && baseUrl.indexOf('https://') !== 0) {
+      throw new Error('Custom API URL must use HTTPS.');
+    }
   }
 
   // Build request based on body format

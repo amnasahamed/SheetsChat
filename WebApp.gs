@@ -16,9 +16,6 @@ function doGet(e) {
   if (params.widget === 'true') {
     return serveWidget();
   }
-  if (params.api === 'chat' || params.api === 'lead') {
-    return serveJsonpApi_(params);
-  }
   // Status page
   var html = '<!DOCTYPE html><html><head><title>SheetsChat</title>';
   html += '<style>body{font-family:system-ui;max-width:680px;margin:40px auto;padding:20px;color:#0F172A;}';
@@ -58,7 +55,15 @@ function handleWidgetRequest_(body) {
   var sessionId = body.sessionId || body.session_id || 'anon';
 
   if (!checkRateLimit(sessionId)) {
+    console.error('Rate limit hit for session: ' + sessionId);
     return { error: 'Rate limited. Please wait a moment and try again.' };
+  }
+
+  // Origin validation (client-supplied, best-effort on Apps Script)
+  var origin = body.origin || '';
+  if (!isOriginAllowed_(origin)) {
+    console.error('Origin rejected: ' + origin);
+    return { error: 'Origin not allowed. Contact the site owner.' };
   }
 
   if (body.type === 'lead') {
@@ -90,33 +95,6 @@ function sanitizeWidgetHistory_(history) {
   return clean;
 }
 
-function serveJsonpApi_(params) {
-  var callback = sanitizeJsonpCallback_(params.callback || '');
-  if (!callback) {
-    return ContentService.createTextOutput('/* Missing callback */')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-
-  var result;
-  try {
-    var body = params.payload ? JSON.parse(params.payload) : {};
-    if (params.api === 'lead') {
-      body.type = 'lead';
-    }
-    result = handleWidgetRequest_(body);
-  } catch (err) {
-    result = { error: err.message || 'Server error.' };
-  }
-
-  return ContentService.createTextOutput(callback + '(' + JSON.stringify(result) + ');')
-    .setMimeType(ContentService.MimeType.JAVASCRIPT);
-}
-
-function sanitizeJsonpCallback_(callback) {
-  callback = String(callback || '');
-  return /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(callback) ? callback : '';
-}
-
 function serveIframeApi_(params) {
   var callbackId = sanitizeCallbackId_(params.callbackId || '');
   if (!callbackId) {
@@ -136,8 +114,24 @@ function serveIframeApi_(params) {
     callbackId: callbackId,
     result: result
   };
+  // Use configured domain for targetOrigin instead of wildcard "*"
+  var targetOrigin = '*';
+  try {
+    var config = getConfigInternal_();
+    var allowedDomains = (config.allowedDomains || '').trim();
+    if (allowedDomains) {
+      var firstDomain = allowedDomains.split(',')[0].trim();
+      if (firstDomain && /^https?:\/\//.test(firstDomain)) {
+        targetOrigin = firstDomain;
+      } else if (firstDomain) {
+        targetOrigin = 'https://' + firstDomain;
+      }
+    }
+  } catch (e) {
+    // Fall back to "*" if config read fails
+  }
   var html = '<!doctype html><html><body><script>' +
-    'parent.postMessage(' + safeJsonForScript_(message) + ',"*");' +
+    'parent.postMessage(' + safeJsonForScript_(message) + ',' + JSON.stringify(targetOrigin) + ');' +
     '</script></body></html>';
   return HtmlService.createHtmlOutput(html);
 }
@@ -290,7 +284,7 @@ function buildWidgetJS(config) {
     'D.body.appendChild(root);' +
 
     // State
-    'var isOpen=false;var H=[];var sending=false;var leadDone=false;var lastFailed="";var SID="anon";' +
+    'var isOpen=false;var H=[];var sending=false;var leadDone=false;var lastFailed="";var SID="anon";var WO=window.location?window.location.origin:"";' +
     'try{SID=sessionStorage.getItem("cb_sid")||("s_"+Math.random().toString(36).slice(2)+"_"+Date.now().toString(36));sessionStorage.setItem("cb_sid",SID);}catch(e){SID="s_"+Math.random().toString(36).slice(2);}' +
     'try{H=JSON.parse(sessionStorage.getItem("cb_h")||"[]");}catch(e){}' +
     'try{leadDone=!!sessionStorage.getItem("cb_lead");}catch(e){}' +
@@ -372,7 +366,7 @@ function buildWidgetJS(config) {
     'var n=D.getElementById("cb-lead-name").value.trim();' +
     'var em=D.getElementById("cb-lead-email").value.trim();' +
     'if(!n||!em){alert("Please enter name and email.");return;}' +
-    'request({type:"lead",name:n,email:em,source:"widget",sessionId:SID},function(d){' +
+    'request({type:"lead",name:n,email:em,source:"widget",sessionId:SID,origin:WO},function(d){' +
     'if(d.error){alert(d.error);return;}' +
     'leadDone=true;try{sessionStorage.setItem("cb_lead","1");}catch(e){}' +
     'lf.style.display="none";msgs.style.display="flex";inpArea.style.display="flex";' +
@@ -394,7 +388,7 @@ function buildWidgetJS(config) {
     'var start=Math.max(0,H.length-7);' +
     'for(var i=start;i<H.length-1;i++){priorH.push({role:H[i].role,content:String(H[i].content||"").slice(0,800)});}' +
 
-    'request({message:txt,history:priorH,sessionId:SID},function(d){' +
+    'request({message:txt,history:priorH,sessionId:SID,origin:WO},function(d){' +
     'hideTyping();' +
     'if(d.error){H.pop();lastFailed=txt;appendMsg("error","Error: "+d.error);}' +
     'else{lastFailed="";appendMsg("bot",d.response);H.push({role:"assistant",content:d.response});}' +
@@ -436,4 +430,35 @@ function checkRateLimit(sessionId) {
   }
   cache.put(cacheKey, String(count + 1), RATE_LIMIT_WINDOW);
   return true;
+}
+
+/**
+ * Validates widget request origin against configured allowedDomains.
+ * Returns true if origin is allowed (or if no domains configured = allow all).
+ * @param {string} origin - The client-supplied origin (e.g., "https://example.com")
+ */
+function isOriginAllowed_(origin) {
+  var config = getConfigInternal_();
+  var allowedDomains = (config.allowedDomains || '').trim();
+  // Empty config = allow all (backward compatible)
+  if (!allowedDomains) return true;
+  // No origin provided but config exists = block
+  if (!origin) return false;
+
+  var domains = allowedDomains.split(',').map(function(d) { return d.trim().toLowerCase(); });
+  try {
+    var originHost = origin.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
+    for (var i = 0; i < domains.length; i++) {
+      var domain = domains[i].replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+      if (!domain) continue;
+      // Exact match or subdomain match
+      if (originHost === domain || originHost.endsWith('.' + domain)) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // On parse error, deny
+    return false;
+  }
+  return false;
 }
