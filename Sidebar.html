@@ -613,7 +613,8 @@
 
   <!-- ==================== SETUP TAB ==================== -->
   <div id="tab-setup" class="tab-content active">
-    <div id="welcomeBanner" style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:12px; padding:18px; margin-bottom:20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+    <div id="welcomeBanner" style="background:linear-gradient(135deg,#EEF2FF,#E0E7FF); border:1px solid #C7D2FE; border-radius:12px; padding:18px; margin-bottom:20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position:relative;">
+      <button onclick="dismissWelcome()" style="position:absolute; top:10px; right:12px; background:none; border:none; color:#4338CA; opacity:0.5; cursor:pointer; font-size:16px; line-height:1; padding:2px;" aria-label="Dismiss">&times;</button>
       <div style="font-size:16px; font-weight:700; color:#4338CA; margin-bottom:8px;">Welcome to SheetsChat! 🚀</div>
       <p style="font-size:13px; color:#4338CA; opacity:0.9; line-height:1.6; margin-bottom:12px;">Transform your spreadsheet into a premium AI chatbot in minutes.</p>
 
@@ -801,7 +802,7 @@
       <!-- messages injected here -->
     </div>
 
-    <div id="chatSuggestions" style="display:none; padding:0 0 8px 0; display:flex; flex-wrap:wrap; gap:6px; flex-shrink:0;"></div>
+    <div id="chatSuggestions" style="display:none; padding:0 0 8px 0; flex-wrap:wrap; gap:6px; flex-shrink:0;"></div>
 
     <div class="typing-indicator" id="typingIndicator">
       <div class="typing-dot"></div>
@@ -824,12 +825,13 @@
   <div id="tab-deploy" class="tab-content">
 
     <div id="deploySaveHint" style="display:none; background:#FEF3C7; border:1px solid #FCD34D; border-radius:8px; padding:12px; margin-bottom:16px; font-size:12px; color:#92400E;">
-      Save your configuration in the <strong>Setup</strong> tab before deploying.
+      Save your configuration in the <strong>Provider</strong> tab before deploying.
     </div>
     <div class="deploy-section">
       <h3><span class="step-num">1</span> Generate Your Widget</h3>
       <p class="deploy-hint">Make sure you've saved your config first, then click below.</p>
-      <button class="btn btn-primary btn-block" onclick="generateEmbed()" style="padding:11px 16px; font-size:14px;">🚀 Generate Embed Code</button>
+      <button class="btn btn-primary btn-block" id="generateBtn" onclick="generateEmbed()" style="padding:11px 16px; font-size:14px;">🚀 Generate Embed Code</button>
+      <div id="deployStatus" class="status"></div>
       <details style="margin-top:12px;">
         <summary style="font-size:12px; color:#64748B;">Having trouble?</summary>
         <div class="form-group" style="margin-top:8px;">
@@ -975,6 +977,15 @@
         } else {
           checkKb.textContent = '○';
           checkKb.parentElement.classList.remove('done');
+        }
+
+        var checkDeploy = document.getElementById('check-deploy');
+        if (data.hasWebAppUrl || currentEmbedCode) {
+          checkDeploy.textContent = '✓';
+          checkDeploy.parentElement.classList.add('done');
+        } else {
+          checkDeploy.textContent = '○';
+          checkDeploy.parentElement.classList.remove('done');
         }
 
         // Update Recent Activity
@@ -1402,7 +1413,13 @@
     // --- Deploy ---
     function generateEmbed() {
       // Warn if there are unsaved changes
-      var statusEl = document.getElementById('saveStatus');
+      var statusEl = document.getElementById('deployStatus');
+      var genBtn = document.getElementById('generateBtn');
+      statusEl.className = 'status';
+      statusEl.textContent = '';
+      genBtn.disabled = true;
+      genBtn.textContent = 'Generating...';
+
       var providerEl = document.getElementById('provider');
       var providerKey = providerEl.value;
       var modelVal = providerKey === 'custom' ? document.getElementById('customModel').value : document.getElementById('model').value;
@@ -1426,10 +1443,18 @@
           );
           if (needsSave) {
             statusEl.className = 'status error';
-            statusEl.textContent = 'Warning: You have unsaved changes. Save config first!';
+            statusEl.textContent = 'You have unsaved changes. Save config in the Provider tab first!';
+            genBtn.disabled = false;
+            genBtn.textContent = '🚀 Generate Embed Code';
             return;
           }
           doGenerateEmbed();
+          genBtn.disabled = false;
+          genBtn.textContent = '🚀 Generate Embed Code';
+        })
+        .withFailureHandler(function() {
+          genBtn.disabled = false;
+          genBtn.textContent = '🚀 Generate Embed Code';
         })
         .getConfig();
     }
@@ -1445,7 +1470,14 @@
           // Extract URL for display
           var urlMatch = code.match(/src="([^"]+)"/);
           if (urlMatch && urlMatch[1]) {
-            document.getElementById('deployUrl').textContent = 'URL: ' + urlMatch[1];
+            var rawUrl = urlMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+            document.getElementById('deployUrl').textContent = 'URL: ' + rawUrl;
+            // Auto-populate the webAppUrl field if it was empty
+            var urlInput = document.getElementById('webAppUrl');
+            if (!urlInput.value.trim()) {
+              var cleanUrl = rawUrl.replace(/[?&]widget=true(?:&|$)/, '').replace(/\?$/, '');
+              urlInput.value = cleanUrl;
+            }
           }
         })
         .withFailureHandler(function(err) {
@@ -1480,7 +1512,7 @@
     function copyAIPrompt() {
       if (!currentEmbedCode) return;
       var urlMatch = currentEmbedCode.match(/src="([^"]+)"/);
-      var url = urlMatch ? urlMatch[1] : '';
+      var url = urlMatch ? urlMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"') : '';
       var botName = document.getElementById('botName').value || 'Assistant';
 
       var prompt = 'Add an AI chatbot widget to my website. ' +

@@ -60,6 +60,7 @@ function addKnowledgeEntry(entry) {
     entry.answer || '',
     entry.keywords || ''
   ]);
+  invalidateKBCache_();
   return { success: true };
 }
 
@@ -70,6 +71,7 @@ function deleteKnowledgeEntry(rowNumber) {
   var sheet = ensureKnowledgeSheet();
   if (rowNumber > 1 && rowNumber <= sheet.getLastRow()) {
     sheet.deleteRow(rowNumber);
+    invalidateKBCache_();
     return { success: true };
   }
   return { success: false, error: 'Invalid row' };
@@ -77,15 +79,14 @@ function deleteKnowledgeEntry(rowNumber) {
 
 /**
  * Searches the knowledge base and returns relevant context string.
- * Uses weighted keyword matching.
+ * Uses weighted keyword matching. Results are cached for 5 minutes.
  */
-function getKnowledgeContext(userMessage) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('KnowledgeBase');
-  if (!sheet) return '';
+var KB_CACHE_KEY = 'kb_data_rows';
+var KB_CACHE_TTL = 300; // 5 minutes
 
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return '';
+function getKnowledgeContext(userMessage) {
+  var data = getKBCachedData_();
+  if (!data || data.length <= 1) return '';
 
   var userWords = _tokenize(userMessage.toLowerCase());
   if (userWords.length === 0) return '';
@@ -153,4 +154,29 @@ function _computeRelevance(userWords, question, answer, keywords) {
   if (matchCount >= 2) score += matchCount * 2;
 
   return score;
+}
+
+/**
+ * Reads KB data from cache or falls back to sheet read.
+ * Cache TTL: 5 minutes.
+ */
+function getKBCachedData_() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get(KB_CACHE_KEY);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) { /* fall through */ }
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('KnowledgeBase');
+  if (!sheet) return null;
+  var data = sheet.getDataRange().getValues();
+  try { cache.put(KB_CACHE_KEY, JSON.stringify(data), KB_CACHE_TTL); } catch (e) { /* non-critical */ }
+  return data;
+}
+
+/**
+ * Invalidates the KB data cache. Call on writes.
+ */
+function invalidateKBCache_() {
+  try { CacheService.getScriptCache().remove(KB_CACHE_KEY); } catch (e) { /* non-critical */ }
 }

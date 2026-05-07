@@ -1,33 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetsChat</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 640px; margin: 60px auto; padding: 20px; color: #1F2937; line-height: 1.7; }
-    h1 { color: #1E40AF; font-size: 28px; margin-bottom: 4px; }
-    .tagline { color: #6B7280; font-size: 16px; margin-bottom: 32px; }
-    a { color: #2563EB; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .links { list-style: none; padding: 0; }
-    .links li { margin: 12px 0; }
-    .links a { font-size: 18px; display: inline-block; padding: 8px 0; }
-    .footer { margin-top: 48px; color: #9CA3AF; font-size: 14px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SheetsChat | Turn Google Sheets into AI Chatbots</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --bg: #ffffff;
+            --text: #111827;
+            --text-light: #6b7280;
+            --accent: #eff6ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; color: var(--text); line-height: 1.6; overflow-x: hidden; }
+
+        nav {
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .logo { font-weight: 700; font-size: 24px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .logo img { width: 32px; height: 32px; }
+
+        .nav-links { display: flex; gap: 30px; }
+        .nav-links a { text-decoration: none; color: var(--text-light); font-weight: 500; transition: color 0.3s; }
+        .nav-links a:hover { color: var(--primary); }
+
+        .hero {
+            padding: 100px 5% 60px;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .hero-content h1 { font-size: 64px; line-height: 1.1; margin-bottom: 24px; font-weight: 700; }
+        .hero-content p { font-size: 20px; color: var(--text-light); margin-bottom: 40px; }
+
+        .cta-btn {
+            background: var(--primary);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 18px;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+            transition: transform 0.3s, background 0.3s;
+            display: inline-block;
+        }
+        .cta-btn:hover { transform: translateY(-2px); background: var(--primary-dark); }
+
+        .hero-image img {
+            width: 100%;
+            border-radius: 24px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.1);
+        }
+
+        .features { padding: 100px 5%; background: var(--accent); }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 50px auto 0;
+        }
+        .feature-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .feature-card:hover { transform: translateY(-10px); }
+        .feature-card h3 { font-size: 22px; margin: 20px 0 12px; }
+        .feature-card p { color: var(--text-light); }
+        .feature-icon { font-size: 32px; }
+
+        footer { padding: 60px 5%; background: #000; color: white; text-align: center; }
+        .footer-links { margin-top: 30px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .footer-links a { color: #9ca3af; text-decoration: none; font-size: 14px; }
+        .footer-links a:hover { color: white; }
+
+        @media (max-width: 968px) {
+            .hero { grid-template-columns: 1fr; text-align: center; padding-top: 60px; }
+            .hero-content h1 { font-size: 42px; }
+            .nav-links { display: none; }
+        }
+    </style>
 </head>
 <body>
-  <h1>SheetsChat</h1>
-  <p class="tagline">Add a customizable AI chatbot to any website in minutes. Powered by Google Sheets.</p>
 
-  <ul class="links">
-    <li><a href="privacy-policy.html">Privacy Policy</a></li>
-    <li><a href="terms-of-service.html">Terms of Service</a></li>
-  </ul>
+    <nav>
+        <div class="logo">
+            <img src="icon-128.png" alt="Logo">
+            SheetsChat
+        </div>
+        <div class="nav-links">
+            <a href="setup.html">Setup</a>
+            <a href="help.html">Help Center</a>
+            <a href="support.html">Support</a>
+        </div>
+        <a href="https://workspace.google.com/marketplace/app/sheetschat/991084722307" class="cta-btn" style="padding: 10px 20px; font-size: 14px;">Get Started</a>
+    </nav>
 
-  <p class="footer">
-    SheetsChat is a Google Workspace Marketplace add-on.<br>
-    <a href="https://github.com/amnasahamed/SheetsChat">Source on GitHub</a>
-  </p>
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Turn your Google Sheets into AI Chatbots.</h1>
+            <p>Deploy custom AI chat widgets to any website in minutes. Manage knowledge, logs, and leads—all from the comfort of a spreadsheet.</p>
+            <a href="https://workspace.google.com/marketplace/app/sheetschat/991084722307" class="cta-btn">Install SheetChat Free</a>
+        </div>
+        <div class="hero-image">
+            <img src="hero.png" alt="SheetsChat Interface">
+        </div>
+    </section>
+
+    <section class="features">
+        <h2 style="text-align: center; font-size: 36px;">Why Choose SheetsChat?</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3>Zero Code Deployment</h3>
+                <p>Just copy and paste a single script tag to any website. Works with WordPress, Wix, Shopify, and more.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Sheet-Powered Knowledge</h3>
+                <p>Add Q&A pairs to your spreadsheet and your bot learns them instantly. No complex training required.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Privacy First</h3>
+                <p>Your chat logs, leads, and API keys stay in your Google account. We never touch your data.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="logo" style="justify-content: center; color: white; margin-bottom: 20px;">
+            SheetsChat
+        </div>
+        <p>&copy; 2026 SheetsChat. Built with Google Apps Script.</p>
+        <div class="footer-links">
+            <a href="setup.html">Setup Guide</a>
+            <a href="help.html">Help Center</a>
+            <a href="support.html">Support</a>
+            <a href="privacy-policy.html">Privacy Policy</a>
+            <a href="terms-of-service.html">Terms of Service</a>
+            <a href="post-install.html">Post Install</a>
+        </div>
+    </footer>
+
 </body>
 </html>

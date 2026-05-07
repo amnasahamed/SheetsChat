@@ -54,8 +54,16 @@ function handleWidgetRequest_(body) {
   body = body || {};
   var sessionId = body.sessionId || body.session_id || 'anon';
 
+  // Session-based rate limit
   if (!checkRateLimit(sessionId)) {
     console.error('Rate limit hit for session: ' + sessionId);
+    return { error: 'Rate limited. Please wait a moment and try again.' };
+  }
+
+  // Secondary rate limit by origin fingerprint to prevent session rotation abuse
+  var fpKey = buildFingerprintKey_(body);
+  if (fpKey && !checkRateLimit(fpKey, 60, 120)) {
+    console.error('Rate limit hit for fingerprint: ' + fpKey);
     return { error: 'Rate limited. Please wait a moment and try again.' };
   }
 
@@ -416,20 +424,37 @@ function buildWidgetJS(config) {
 /**
  * Rate limiting using CacheService.
  * Returns true if request is allowed, false if rate limited.
- * Limit: 30 requests per sessionId per 60 seconds.
+ * @param {string} key - Identifier to rate limit on
+ * @param {number} maxRequests - Max requests allowed in window (default: RATE_LIMIT_MAX)
+ * @param {number} windowSec - Window in seconds (default: RATE_LIMIT_WINDOW)
  */
-function checkRateLimit(sessionId) {
-  if (!sessionId) sessionId = 'anonymous';
-  sessionId = String(sessionId).replace(/[^A-Za-z0-9_-]/g, '').substring(0, 80) || 'anonymous';
-  var cacheKey = 'rl_' + sessionId;
+function checkRateLimit(key, maxRequests, windowSec) {
+  if (!key) key = 'anonymous';
+  maxRequests = maxRequests || RATE_LIMIT_MAX;
+  windowSec = windowSec || RATE_LIMIT_WINDOW;
+  key = String(key).replace(/[^A-Za-z0-9_-]/g, '').substring(0, 80) || 'anonymous';
+  var cacheKey = 'rl_' + key;
   var cache = CacheService.getScriptCache();
   var countStr = cache.get(cacheKey);
   var count = countStr ? parseInt(countStr, 10) : 0;
-  if (count >= RATE_LIMIT_MAX) {
+  if (count >= maxRequests) {
     return false;
   }
-  cache.put(cacheKey, String(count + 1), RATE_LIMIT_WINDOW);
+  cache.put(cacheKey, String(count + 1), windowSec);
   return true;
+}
+
+/**
+ * Builds a fingerprint key from request body for secondary rate limiting.
+ * Uses origin + a hash of the session pattern to detect rotation abuse.
+ */
+function buildFingerprintKey_(body) {
+  var origin = String(body.origin || '').trim().toLowerCase();
+  if (!origin) return '';
+  // Simple fingerprint: "fp_" prefix + origin host
+  var host = origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
+  if (!host) return '';
+  return 'fp_' + host;
 }
 
 /**

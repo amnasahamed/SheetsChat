@@ -367,6 +367,7 @@ function getDashboardData() {
     kbCount: kbEntries.length,
     leadCount: leadCount,
     hasApiKey: !!config.apiKey,
+    hasWebAppUrl: !!config.webAppUrl,
     recentLogs: recentLogs,
     recentLeads: recentLeads
   };
