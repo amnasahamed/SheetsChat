@@ -118,7 +118,7 @@ function getProviders() {
  * @param {Array} history - Array of previous { role, content } messages
  * @returns {Object} { response: string, model: string }
  */
-function callAI(config, message, history) {
+function callAI(config, message, history, systemPromptOverride) {
   var providerKey = config.provider || 'openai';
   var provider = PROVIDERS[providerKey];
 
@@ -128,7 +128,7 @@ function callAI(config, message, history) {
 
   var apiKey = config.apiKey || '';
   var model = config.model || provider.models[0] || '';
-  var systemPrompt = config.systemPrompt || '';
+  var systemPrompt = systemPromptOverride !== undefined ? systemPromptOverride : (config.systemPrompt || '');
   var temperature = parseFloat(config.temperature) || 0.7;
   var maxTokens = parseInt(config.maxTokens, 10) || 1024;
   var topP = parseFloat(config.topP);
@@ -224,13 +224,9 @@ function buildOpenAIPayload(providerKey, model, messages, systemPrompt, temperat
     model: model,
     messages: allMessages,
     temperature: temperature,
+    max_tokens: maxTokens,
     top_p: topP
   };
-  if (providerKey === 'openai') {
-    payload.max_completion_tokens = maxTokens;
-  } else {
-    payload.max_tokens = maxTokens;
-  }
   return payload;
 }
 

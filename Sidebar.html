@@ -1044,6 +1044,12 @@
       }
       if (tab === 'setup') {
         updateDashboardStats();
+        // Re-check deploy status based on current state
+        var checkDeploy = document.getElementById('check-deploy');
+        if (currentEmbedCode) {
+          checkDeploy.textContent = '✓';
+          checkDeploy.parentElement.classList.add('done');
+        }
       }
       if (tab === 'knowledge') {
         loadKnowledgeEntries();

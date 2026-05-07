@@ -109,9 +109,15 @@ function serveIframeApi_(params) {
     return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8">');
   }
 
+  var body = {};
+  try {
+    body = params.payload ? JSON.parse(params.payload) : {};
+  } catch (err) {
+    // body stays empty
+  }
+
   var result;
   try {
-    var body = params.payload ? JSON.parse(params.payload) : {};
     result = handleWidgetRequest_(body);
   } catch (err) {
     result = { error: err.message || 'Server error.' };
@@ -122,8 +128,8 @@ function serveIframeApi_(params) {
     callbackId: callbackId,
     result: result
   };
-  // Use configured domain for targetOrigin instead of wildcard "*"
-  var targetOrigin = '*';
+  // Determine targetOrigin — never use wildcard "*"
+  var targetOrigin = 'https://script.google.com';
   try {
     var config = getConfigInternal_();
     var allowedDomains = (config.allowedDomains || '').trim();
@@ -134,9 +140,12 @@ function serveIframeApi_(params) {
       } else if (firstDomain) {
         targetOrigin = 'https://' + firstDomain;
       }
+    } else if (body.origin) {
+      // No domains configured — use the request's own origin
+      targetOrigin = body.origin;
     }
   } catch (e) {
-    // Fall back to "*" if config read fails
+    if (body.origin) { targetOrigin = body.origin; }
   }
   var html = '<!doctype html><html><body><script>' +
     'parent.postMessage(' + safeJsonForScript_(message) + ',' + JSON.stringify(targetOrigin) + ');' +
@@ -283,7 +292,10 @@ function buildWidgetJS(config) {
     'var sugDiv=D.createElement("div");sugDiv.id="cb-suggestions";panel.appendChild(sugDiv);' +
     // Lead capture form
     'var lf=D.createElement("div");lf.id="cb-lead-form";lf.style.display="none";' +
-    'lf.innerHTML=\'<div>Before we chat, tell us about yourself</div><input id="cb-lead-name" placeholder="Your name"><input id="cb-lead-email" placeholder="Your email" type="email"><button onclick="">Start Chat</button>\';' +
+    'var lfTitle=D.createElement("div");lfTitle.textContent="Before we chat, tell us about yourself";lf.appendChild(lfTitle);' +
+    'var lfName=D.createElement("input");lfName.id="cb-lead-name";lfName.placeholder="Your name";lf.appendChild(lfName);' +
+    'var lfEmail=D.createElement("input");lfEmail.id="cb-lead-email";lfEmail.placeholder="Your email";lfEmail.type="email";lf.appendChild(lfEmail);' +
+    'var lfBtn=D.createElement("button");lfBtn.textContent="Start Chat";lf.appendChild(lfBtn);' +
     'panel.appendChild(lf);' +
     'panel.appendChild(typ);panel.appendChild(inpArea);' +
 
@@ -315,7 +327,7 @@ function buildWidgetJS(config) {
     'var m=H[i];' +
     'var b=D.createElement("div");' +
     'b.className=m.role==="user"?"cb-msg cb-user":"cb-msg cb-bot";' +
-    'b.textContent=m.content;' +
+    'b.innerHTML=m.role==="bot"?linkify(m.content):m.content.replace(/&/g,"\\u0026amp;").replace(/</g,"\\u0026lt;").replace(/>/g,"\\u0026gt;");' +
     'msgs.appendChild(b);' +
     '}}' +
     'scrollDown();' +
@@ -329,8 +341,16 @@ function buildWidgetJS(config) {
     'var rb=D.createElement("button");rb.textContent="Retry";rb.style.cssText="margin-top:6px;padding:4px 12px;border:1px solid #D1D5DB;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;font-family:system-ui;";' +
     'rb.addEventListener("click",function(){b.remove();if(lastFailed){inp.value=lastFailed;send();}});' +
     'b.appendChild(rb);}' +
-    'else{b.className=role==="user"?"cb-msg cb-user":"cb-msg cb-bot";b.textContent=text;}' +
+    'else{b.className=role==="user"?"cb-msg cb-user":"cb-msg cb-bot";b.innerHTML=linkify(text);}' +
     'msgs.appendChild(b);scrollDown();' +
+    '}' +
+
+    // Linkify URLs and emails in bot messages
+    'function linkify(t){' +
+    't=t.replace(/&/g,"\\u0026amp;").replace(/</g,"\\u0026lt;").replace(/>/g,"\\u0026gt;");' +
+    't=t.replace(/(https?:\\/\\/[^\\s<]+)/g,"\\u003ca href=\\u0022$1\\u0022 target=\\u0022_blank\\u0022 rel=\\u0022noopener\\u0022\\u003e$1\\u003c/a\\u003e");' +
+    't=t.replace(/([\\w.-]+@[\\w.-]+\\.\\w{2,})/g,"\\u003ca href=\\u0022mailto:$1\\u0022\\u003e$1\\u003c/a\\u003e");' +
+    'return t;' +
     '}' +
 
     'function scrollDown(){msgs.scrollTop=msgs.scrollHeight;}' +
@@ -369,7 +389,6 @@ function buildWidgetJS(config) {
     // Lead form logic
     'function showLeadForm(){' +
     'lf.style.display="flex";msgs.style.display="none";sugDiv.style.display="none";typ.style.display="none";inpArea.style.display="none";' +
-    'var lfBtn=lf.querySelector("button");' +
     'lfBtn.onclick=function(){' +
     'var n=D.getElementById("cb-lead-name").value.trim();' +
     'var em=D.getElementById("cb-lead-email").value.trim();' +

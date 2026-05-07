@@ -32,8 +32,8 @@ function ensureKnowledgeSheet() {
  * Returns all knowledge base entries for the sidebar UI.
  */
 function getKnowledgeEntries() {
-  var sheet = ensureKnowledgeSheet();
-  var data = sheet.getDataRange().getValues();
+  var data = getKBCachedData_();
+  if (!data) data = [];
   var entries = [];
   for (var i = 1; i < data.length; i++) {
     if (data[i][1] || data[i][2]) {

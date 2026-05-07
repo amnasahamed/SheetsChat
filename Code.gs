@@ -139,15 +139,16 @@ function handleChat(message, history) {
   message = sanitizePromptInjection_(message);
   history = sanitizeHistory_(history);
 
-  // Inject knowledge base context into system prompt
+  // Inject knowledge base context (use local var, don't mutate config)
+  var systemPrompt = config.systemPrompt || '';
   var kbContext = getKnowledgeContext(message);
   if (kbContext) {
-    config.systemPrompt = (config.systemPrompt || '') + kbContext;
+    systemPrompt = systemPrompt + kbContext;
   }
 
   var startTime = new Date().getTime();
   try {
-    var result = callAI(config, message, history);
+    var result = callAI(config, message, history, systemPrompt);
     var latency = new Date().getTime() - startTime;
     logConversation(message, result.response, result.model, latency);
     return { response: result.response };
@@ -244,9 +245,12 @@ function ensureLogsSheet() {
   return sheet;
 }
 
-function logConversation(userMsg, aiResponse, model, latency) {
+function logConversation(userMsg, aiResponse, model, latency, sessionId) {
   var sheet = ensureLogsSheet();
-  var sessionId = Utilities.getUuid().substring(0, 8);
+  // Use provided sessionId or generate a stable one per batch
+  if (!sessionId) {
+    sessionId = Utilities.getUuid().substring(0, 8);
+  }
   sheet.appendRow([
     new Date().toISOString(),
     sessionId,
@@ -318,14 +322,27 @@ function ensureLeadsSheet() {
 }
 
 function saveLead(data) {
-  var sheet = ensureLeadsSheet();
   data = data || {};
+  var name = sanitizeHtml(data.name || '').substring(0, 200);
+  var email = sanitizeHtml(data.email || '').substring(0, 320);
+  var phone = sanitizeHtml(data.phone || '').substring(0, 50);
+  var source = sanitizeHtml(data.source || 'sidebar').substring(0, 50);
+
+  // Validate required fields
+  if (!name) return { error: 'Name is required.' };
+  if (!email) return { error: 'Email is required.' };
+  // Basic email format validation
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: 'Please enter a valid email address.' };
+  }
+
+  var sheet = ensureLeadsSheet();
   sheet.appendRow([
     new Date().toISOString(),
-    sanitizeHtml(data.name || '').substring(0, 200),
-    sanitizeHtml(data.email || '').substring(0, 320),
-    sanitizeHtml(data.phone || '').substring(0, 50),
-    sanitizeHtml(data.source || 'sidebar').substring(0, 50)
+    name,
+    email,
+    phone,
+    source
   ]);
   return { success: true };
 }
