@@ -165,7 +165,7 @@ function handleChat(message, history) {
       console.error('Parse error (details logged): ' + errMsg);
       return { error: 'The AI service returned an unexpected response. Please try again.' };
     }
-    return { error: 'AI Error: ' + errMsg };
+    return { error: 'AI Error: Something went wrong. Please try again.' };
   }
 }
 

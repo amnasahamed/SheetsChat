@@ -46,7 +46,8 @@ function doPost(e) {
     var body = JSON.parse(rawBody);
     return corsResponse(handleWidgetRequest_(body));
   } catch (err) {
-    return corsResponse({ error: err.message || 'Server error.' });
+    console.error('doPost error: ' + (err.message || err));
+    return corsResponse({ error: 'An unexpected error occurred. Please try again.' });
   }
 }
 
@@ -120,7 +121,8 @@ function serveIframeApi_(params) {
   try {
     result = handleWidgetRequest_(body);
   } catch (err) {
-    result = { error: err.message || 'Server error.' };
+    console.error('Iframe API error: ' + (err.message || err));
+    result = { error: 'An unexpected error occurred. Please try again.' };
   }
 
   var message = {

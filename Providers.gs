@@ -195,7 +195,17 @@ function callAI(config, message, history, systemPromptOverride) {
   var responseText = response.getContentText();
 
   if (responseCode !== 200) {
-    throw new Error('API error (' + responseCode + '): ' + responseText);
+    console.error('API error (' + responseCode + '): ' + responseText);
+    if (responseCode === 401 || responseCode === 403) {
+      throw new Error('Authentication failed. Check your API key.');
+    }
+    if (responseCode === 429) {
+      throw new Error('Rate limited by AI provider. Wait a moment and try again.');
+    }
+    if (responseCode >= 500) {
+      throw new Error('AI provider is experiencing issues. Please try again.');
+    }
+    throw new Error('AI provider returned an error. Please try again.');
   }
 
   var data = JSON.parse(responseText);
