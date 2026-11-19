@@ -1,24 +1,39 @@
-function onOpen() {
-  ensureConfigSheet();
-  ensureKnowledgeSheet();
-  ensureLeadsSheet();
-
-  // Migrate API key from DocumentProperties to ScriptProperties (one-time)
-  var docProps = PropertiesService.getDocumentProperties();
-  var scriptProps = PropertiesService.getScriptProperties();
-  var oldKey = docProps.getProperty('apiKey');
-  if (oldKey && !scriptProps.getProperty('apiKey')) {
-    scriptProps.setProperty('apiKey', oldKey);
-    docProps.deleteProperty('apiKey');
-  }
-
+/**
+ * Simple trigger. In an add-on this can run in AuthMode.NONE (before the user
+ * has enabled the add-on in this document), where PropertiesService and sheet
+ * writes are not allowed — so it only builds the menu. Sheets are created when
+ * the sidebar opens.
+ */
+function onOpen(e) {
   SpreadsheetApp.getUi()
-    .createMenu('SheetsChat')
-    .addItem('Open', 'openSidebar')
+    .createAddonMenu()
+    .addItem('Open Sidebar', 'openSidebar')
     .addToUi();
+
+  if (e && e.authMode === ScriptApp.AuthMode.NONE) return;
+  try { migrateApiKeyStorage_(); } catch (err) { /* non-critical */ }
+}
+
+function onInstall(e) {
+  onOpen(e);
+}
+
+/**
+ * Simple trigger: drop the cached KB when the KnowledgeBase sheet is edited by hand.
+ */
+function onEdit(e) {
+  try {
+    if (e && e.range && e.range.getSheet().getName() === KB_SHEET_NAME) {
+      invalidateKBCache_();
+    }
+  } catch (err) { /* non-critical */ }
 }
 
 function openSidebar() {
+  ensureKnowledgeSheet();
+  ensureLeadsSheet();
+  ensureLogsSheet();
+  migrateApiKeyStorage_();
   var html = HtmlService.createHtmlOutputFromFile('Sidebar')
     .setTitle('SheetsChat')
     .setWidth(350);
@@ -43,18 +58,47 @@ var CONFIG_DEFAULTS = {
   allowedDomains: ''
 };
 
+var MAX_MESSAGE_LENGTH = 4000;
+var MAX_HISTORY_ENTRIES = 20;
+var MAX_HISTORY_ENTRY_LENGTH = 2000;
+
+/**
+ * The API key lives in DocumentProperties so it is scoped to this spreadsheet.
+ *
+ * Older versions stored it in ScriptProperties. When this script runs as a
+ * Marketplace add-on, ScriptProperties are shared by EVERY install, so a key
+ * stored there would be visible to (and used by) other customers. Only a
+ * bound / self-deployed copy (InstallationSource.NONE) may migrate it.
+ */
+function migrateApiKeyStorage_() {
+  var docProps = PropertiesService.getDocumentProperties();
+  if (!docProps) return;
+  var scriptProps = PropertiesService.getScriptProperties();
+  var legacyKey = scriptProps.getProperty('apiKey');
+  if (!legacyKey) return;
+
+  var isAddon = false;
+  try {
+    isAddon = ScriptApp.getInstallationSource() !== ScriptApp.InstallationSource.NONE;
+  } catch (err) {
+    isAddon = true; // unknown: assume shared, never copy
+  }
+  if (!isAddon && !docProps.getProperty('apiKey')) {
+    docProps.setProperty('apiKey', legacyKey);
+  }
+  // In both cases, the shared copy must go.
+  scriptProps.deleteProperty('apiKey');
+}
+
 function getConfigInternal_() {
   var props = PropertiesService.getDocumentProperties();
-  var scriptProps = PropertiesService.getScriptProperties();
+  if (!props) {
+    throw new Error('SheetsChat must run from a spreadsheet (no document context).');
+  }
   var config = {};
   for (var key in CONFIG_DEFAULTS) {
     var val = props.getProperty(key);
     config[key] = val !== null ? val : CONFIG_DEFAULTS[key];
-  }
-  // API key comes from ScriptProperties (more secure)
-  var apiKey = scriptProps.getProperty('apiKey');
-  if (apiKey) {
-    config.apiKey = apiKey;
   }
   return config;
 }
@@ -75,71 +119,117 @@ function maskApiKey_(apiKey) {
   return apiKey.substring(0, 4) + '...' + apiKey.substring(apiKey.length - 4);
 }
 
-function saveConfig(config) {
-  var props = PropertiesService.getDocumentProperties();
-  var scriptProps = PropertiesService.getScriptProperties();
+/** Parses a number, returning the fallback only for missing/invalid input (so 0 is kept). */
+function toNumber_(value, fallback, min, max) {
+  var n = parseFloat(value);
+  if (isNaN(n)) return fallback;
+  if (min !== undefined && n < min) n = min;
+  if (max !== undefined && n > max) n = max;
+  return n;
+}
 
-  // Store API key in ScriptProperties (not accessible by sheet users)
+/**
+ * Validates and normalises config coming from the sidebar.
+ * Returns { config } or { error }.
+ */
+function validateConfig_(input) {
+  var out = {};
+  for (var key in CONFIG_DEFAULTS) {
+    if (key === 'apiKey') continue;
+    if (input[key] === undefined || input[key] === null) continue;
+    out[key] = String(input[key]);
+  }
+
+  if (out.provider !== undefined && !PROVIDERS[out.provider]) {
+    return { error: 'Unknown provider: ' + out.provider };
+  }
+  if (out.model !== undefined) {
+    out.model = out.model.trim();
+  }
+  if (out.temperature !== undefined) out.temperature = String(toNumber_(out.temperature, CONFIG_DEFAULTS.temperature, 0, 2));
+  if (out.topP !== undefined) out.topP = String(toNumber_(out.topP, CONFIG_DEFAULTS.topP, 0, 1));
+  if (out.maxTokens !== undefined) {
+    out.maxTokens = String(Math.round(toNumber_(out.maxTokens, CONFIG_DEFAULTS.maxTokens, 1, 64000)));
+  }
+  if (out.botColor !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(out.botColor)) {
+    return { error: 'Bot color must be a hex color like #3B82F6.' };
+  }
+  if (out.customBaseUrl !== undefined) {
+    out.customBaseUrl = out.customBaseUrl.trim();
+    if (out.customBaseUrl && out.customBaseUrl.indexOf('https://') !== 0) {
+      return { error: 'Custom API URL must start with https://' };
+    }
+  }
+  if (out.webAppUrl !== undefined) {
+    out.webAppUrl = out.webAppUrl.trim();
+    if (out.webAppUrl) {
+      try { normalizeWebAppUrl_(out.webAppUrl); } catch (err) { return { error: err.message }; }
+    }
+  }
+  if (out.leadCaptureEnabled !== undefined) {
+    out.leadCaptureEnabled = out.leadCaptureEnabled === 'true' ? 'true' : 'false';
+  }
+  if (out.botName !== undefined) out.botName = out.botName.substring(0, 60);
+  return { config: out };
+}
+
+function saveConfig(config) {
+  config = config || {};
+  var props = PropertiesService.getDocumentProperties();
+
+  var result = validateConfig_(config);
+  if (result.error) {
+    throw new Error(result.error);
+  }
+
   if (config.apiKey !== undefined && config.apiKey !== null) {
     var apiKey = String(config.apiKey).trim();
-    if (apiKey && apiKey.indexOf('...') === -1) {
-      scriptProps.setProperty('apiKey', apiKey);
+    if (apiKey && apiKey !== maskApiKey_(props.getProperty('apiKey') || '')) {
+      props.setProperty('apiKey', apiKey);
     } else if (!apiKey) {
-      scriptProps.deleteProperty('apiKey');
+      props.deleteProperty('apiKey');
     }
   }
 
-  // Store everything else in DocumentProperties
-  for (var key in config) {
-    if (key === 'apiKey') continue;
-    if (config[key] !== undefined && config[key] !== null) {
-      props.setProperty(key, String(config[key]));
-    }
-  }
+  props.setProperties(result.config);
   return { success: true };
 }
 
 function resetConfig() {
-  var props = PropertiesService.getDocumentProperties();
-  var scriptProps = PropertiesService.getScriptProperties();
-  props.deleteAllProperties();
-  scriptProps.deleteProperty('apiKey');
+  PropertiesService.getDocumentProperties().deleteAllProperties();
   return { success: true, config: getConfig() };
 }
 
-function ensureConfigSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('ChatbotConfig');
-  if (!sheet) {
-    sheet = ss.insertSheet('ChatbotConfig');
-    var headers = ['Key', 'Value'];
-    sheet.getRange(1, 1, 1, 2).setValues([headers]);
-    sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
-    var defaults = [];
-    for (var key in CONFIG_DEFAULTS) {
-      defaults.push([key, String(CONFIG_DEFAULTS[key])]);
-    }
-    if (defaults.length > 0) {
-      sheet.getRange(2, 1, defaults.length, 2).setValues(defaults);
-    }
-  }
-  return sheet;
+/** Splits stored suggested questions. New format is newline-separated; old was comma-separated. */
+function parseSuggestions_(value) {
+  value = String(value || '');
+  var parts = value.indexOf('\n') !== -1 ? value.split('\n') : value.split(',');
+  return parts.map(function(s) { return s.trim(); }).filter(function(s) { return s; });
 }
 
 // --- Chat Handler ---
 
-function handleChat(message, history) {
+/**
+ * Called by the sidebar (test chat) and the widget endpoint.
+ * @param {string} message
+ * @param {Array} history  previous { role, content } turns
+ * @param {string=} sessionId  used for logging
+ */
+function handleChat(message, history, sessionId) {
   var config = getConfigInternal_();
   if (!config.apiKey) {
     return { error: 'Please set your API key in the Setup tab.' };
   }
 
-  // Sanitize user message
-  message = sanitizeHtml(message);
-  message = sanitizePromptInjection_(message);
+  message = sanitizePromptInjection_(sanitizeHtml(message));
+  if (!message) {
+    return { error: 'Message is required.' };
+  }
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return { error: 'Message too long (max ' + MAX_MESSAGE_LENGTH + ' characters).' };
+  }
   history = sanitizeHistory_(history);
 
-  // Inject knowledge base context (use local var, don't mutate config)
   var systemPrompt = config.systemPrompt || '';
   var kbContext = getKnowledgeContext(message);
   if (kbContext) {
@@ -150,84 +240,97 @@ function handleChat(message, history) {
   try {
     var result = callAI(config, message, history, systemPrompt);
     var latency = new Date().getTime() - startTime;
-    logConversation(message, result.response, result.model, latency);
+    try {
+      logConversation(message, result.response, result.model, latency, sessionId || 'sidebar');
+    } catch (logErr) {
+      console.error('Logging failed: ' + logErr.message);
+    }
     return { response: result.response };
   } catch (e) {
-    var errMsg = e.message || '';
-    if (errMsg.indexOf('401') !== -1) {
-      return { error: 'Invalid API key. Check your key in the Setup tab.' };
+    console.error('Chat error: ' + (e && e.message));
+    // Errors raised by callAI carry a userMessage that is safe to show.
+    if (e && e.userMessage) {
+      return { error: e.userMessage };
     }
-    if (errMsg.indexOf('429') !== -1) {
-      return { error: 'Rate limited by AI provider. Wait a moment and try again.' };
-    }
-    // Wrap parse errors with generic message (don't leak provider details)
-    if (errMsg.indexOf('Unexpected') !== -1 && errMsg.indexOf('response format') !== -1) {
-      console.error('Parse error (details logged): ' + errMsg);
-      return { error: 'The AI service returned an unexpected response. Please try again.' };
-    }
-    return { error: 'AI Error: Something went wrong. Please try again.' };
+    return { error: 'Something went wrong talking to the AI provider. Please try again.' };
   }
 }
 
 /**
- * Strips HTML tags from a string to prevent injection.
+ * Removes HTML tags. Only strips things that look like real tags, so plain
+ * text such as "3<5 and 6>4" survives.
  */
 function sanitizeHtml(text) {
   if (text === undefined || text === null) return '';
   return String(text)
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]*>/g, '')
+    .replace(/<\/?[a-zA-Z][^<>]*>/g, '')
     .replace(/javascript:/gi, '')
     .trim();
 }
 
+/**
+ * Cleans conversation history so every provider accepts it:
+ *  - keeps the most recent MAX_HISTORY_ENTRIES turns (not the oldest)
+ *  - first turn is from the user (Anthropic/Gemini requirement)
+ *  - consecutive same-role turns are merged so roles alternate
+ */
 function sanitizeHistory_(history) {
   var clean = [];
   if (!history || !history.length) return clean;
-  for (var i = 0; i < history.length && clean.length < 20; i++) {
+  for (var i = 0; i < history.length; i++) {
     var item = history[i] || {};
     var role = item.role === 'assistant' ? 'assistant' : 'user';
-    var content = sanitizeHtml(item.content);
-    if (content) {
-      clean.push({ role: role, content: content.substring(0, 2000) });
+    var content = sanitizeHtml(item.content).substring(0, MAX_HISTORY_ENTRY_LENGTH);
+    if (role === 'user') content = sanitizePromptInjection_(content);
+    if (content) clean.push({ role: role, content: content });
+  }
+  clean = clean.slice(-MAX_HISTORY_ENTRIES);
+  while (clean.length && clean[0].role !== 'user') clean.shift();
+  return mergeSameRoleTurns_(clean);
+}
+
+function mergeSameRoleTurns_(messages) {
+  var merged = [];
+  for (var i = 0; i < messages.length; i++) {
+    var last = merged[merged.length - 1];
+    if (last && last.role === messages[i].role) {
+      last.content += '\n\n' + messages[i].content;
+    } else {
+      merged.push({ role: messages[i].role, content: messages[i].content });
     }
   }
-  return clean;
+  return merged;
 }
 
 /**
- * Filters common prompt injection patterns from user messages.
- * Strips attempts to override system instructions.
+ * Removes explicit attempts to override the system prompt. Kept narrow on
+ * purpose: broad patterns ("you are now", "system:", "simulate a") also
+ * removed words from normal customer questions.
  */
 function sanitizePromptInjection_(text) {
   if (!text) return text;
-  var cleaned = text;
-  // Strip common system-prompt override patterns (case-insensitive)
   var patterns = [
-    /ignore\s+(all\s+)?previous\s+instructions?/gi,
-    /ignore\s+(all\s+)?prior\s+instructions?/gi,
-    /you\s+are\s+now\s+/gi,
-    /system\s*:/gi,
-    /(\[|\()<\|?(system|assistant)(\]|\))/gi,
-    /<\|?(system|assistant)\|?>/gi,
-    /forget\s+(all\s+)?(your|previous|prior)\s+/gi,
-    /new\s+instructions?\s*:/gi,
-    /disregard\s+(all\s+)?(previous|prior|above)\s+/gi,
-    /override\s+(your|the)\s+(system|previous|prior)\s+/gi,
-    /pretend\s+you\s+are\s+/gi,
-    /act\s+as\s+if\s+you\s+(are|were)\s+/gi,
-    /from\s+now\s+on\s*[,]\s*you\s+are\s+/gi,
-    /simulate\s+(being|a|an)\s+/gi,
-    /jailbreak/gi,
-    /DAN\s+mode/gi,
-    /developer\s+mode/gi,
-    /\/(?:system|assistant|override)/gi
+    /\b(ignore|disregard|forget)\s+(all\s+)?(the\s+)?(previous|prior|above|earlier)\s+(instructions?|prompts?|rules)\b/gi,
+    /\boverride\s+(your|the)\s+system\s+prompt\b/gi,
+    /<\|?\s*(system|assistant|im_start|im_end)\s*\|?>/gi,
+    /\[\/?(system|INST)\]/gi
   ];
+  var cleaned = text;
   for (var i = 0; i < patterns.length; i++) {
     cleaned = cleaned.replace(patterns[i], '');
   }
-  return cleaned;
+  return cleaned.trim();
+}
+
+/**
+ * Prevents formula injection: a cell value beginning with = + - @ would be
+ * evaluated by Sheets (e.g. =IMPORTXML(...) exfiltrating data).
+ */
+function sheetSafe_(value) {
+  if (typeof value !== 'string') return value;
+  return /^[=+\-@\t\r]/.test(value) ? "'" + value : value;
 }
 
 // --- Logging ---
@@ -247,16 +350,12 @@ function ensureLogsSheet() {
 
 function logConversation(userMsg, aiResponse, model, latency, sessionId) {
   var sheet = ensureLogsSheet();
-  // Use provided sessionId or generate a stable one per batch
-  if (!sessionId) {
-    sessionId = Utilities.getUuid().substring(0, 8);
-  }
   sheet.appendRow([
     new Date().toISOString(),
-    sessionId,
-    userMsg,
-    aiResponse,
-    model,
+    sheetSafe_(String(sessionId || 'unknown').substring(0, 80)),
+    sheetSafe_(userMsg),
+    sheetSafe_(aiResponse),
+    sheetSafe_(model),
     latency
   ]);
 }
@@ -274,14 +373,14 @@ function normalizeWebAppUrl_(url) {
   if (!url) {
     throw new Error('Web App URL is missing. Paste the /exec URL from Deploy > Manage deployments.');
   }
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[^?#]+\/(?:exec|dev)(?:[?#].*)?$/.test(url)) {
+  if (!/^https:\/\/script\.google\.com\/(?:a\/[^\/]+\/)?macros\/s\/[^?#\/]+\/(?:exec|dev)(?:[?#].*)?$/.test(url)) {
     throw new Error('Invalid Web App URL. Use the Apps Script URL ending in /exec.');
   }
   return url;
 }
 
 function withWidgetParam_(url) {
-  if (/[?&]widget=true(?:&|$)/.test(url)) {
+  if (/[?&]widget=true(?:&|#|$)/.test(url)) {
     return url;
   }
   var hash = '';
@@ -328,10 +427,8 @@ function saveLead(data) {
   var phone = sanitizeHtml(data.phone || '').substring(0, 50);
   var source = sanitizeHtml(data.source || 'sidebar').substring(0, 50);
 
-  // Validate required fields
   if (!name) return { error: 'Name is required.' };
   if (!email) return { error: 'Email is required.' };
-  // Basic email format validation
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: 'Please enter a valid email address.' };
   }
@@ -339,12 +436,21 @@ function saveLead(data) {
   var sheet = ensureLeadsSheet();
   sheet.appendRow([
     new Date().toISOString(),
-    name,
-    email,
-    phone,
-    source
+    sheetSafe_(name),
+    sheetSafe_(email),
+    sheetSafe_(phone),
+    sheetSafe_(source)
   ]);
   return { success: true };
+}
+
+/** Converts a cell value to a string safe to return via google.script.run (Dates are not). */
+function cellToString_(value) {
+  if (value === null || value === undefined) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return isNaN(value.getTime()) ? '' : value.toISOString();
+  }
+  return String(value);
 }
 
 /**
@@ -356,28 +462,30 @@ function getDashboardData() {
 
   var leadsSheet = ensureLeadsSheet();
   var leadsData = leadsSheet.getDataRange().getValues();
-  var leadCount = leadsData.length - 1;
-  if (leadCount < 0) leadCount = 0;
+  var leadCount = Math.max(0, leadsData.length - 1);
 
   var recentLeads = [];
-  // Get last 3 leads
   for (var j = leadsData.length - 1; j >= 1 && recentLeads.length < 3; j--) {
     recentLeads.push({
-      name: leadsData[j][1],
-      email: leadsData[j][2]
+      name: cellToString_(leadsData[j][1]),
+      email: cellToString_(leadsData[j][2])
     });
   }
 
+  // Only read the last few log rows; the log sheet can grow large.
   var logsSheet = ensureLogsSheet();
-  var logsData = logsSheet.getDataRange().getValues();
   var recentLogs = [];
-  // Get last 5 logs (skipping header)
-  for (var i = logsData.length - 1; i >= 1 && recentLogs.length < 5; i--) {
-    recentLogs.push({
-      timestamp: logsData[i][0],
-      userMsg: logsData[i][2],
-      model: logsData[i][4]
-    });
+  var lastRow = logsSheet.getLastRow();
+  if (lastRow > 1) {
+    var n = Math.min(5, lastRow - 1);
+    var logsData = logsSheet.getRange(lastRow - n + 1, 1, n, 5).getValues();
+    for (var i = logsData.length - 1; i >= 0; i--) {
+      recentLogs.push({
+        timestamp: cellToString_(logsData[i][0]),
+        userMsg: cellToString_(logsData[i][2]),
+        model: cellToString_(logsData[i][4])
+      });
+    }
   }
 
   return {
