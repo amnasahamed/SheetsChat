@@ -77,17 +77,22 @@ function migrateApiKeyStorage_() {
   var legacyKey = scriptProps.getProperty('apiKey');
   if (!legacyKey) return;
 
-  var isAddon = false;
+  var source;
   try {
-    isAddon = ScriptApp.getInstallationSource() !== ScriptApp.InstallationSource.NONE;
+    source = ScriptApp.getInstallationSource();
   } catch (err) {
-    isAddon = true; // unknown: assume shared, never copy
+    return; // can't tell: change nothing (the script copy is no longer read)
   }
-  if (!isAddon && !docProps.getProperty('apiKey')) {
-    docProps.setProperty('apiKey', legacyKey);
+  if (source === ScriptApp.InstallationSource.NONE) {
+    // Bound / self-deployed copy: script and document scope are the same owner.
+    if (!docProps.getProperty('apiKey')) {
+      docProps.setProperty('apiKey', legacyKey);
+    }
+    if (docProps.getProperty('apiKey')) scriptProps.deleteProperty('apiKey');
+  } else {
+    // Add-on: the shared copy belongs to whoever saved it last. Never copy it.
+    scriptProps.deleteProperty('apiKey');
   }
-  // In both cases, the shared copy must go.
-  scriptProps.deleteProperty('apiKey');
 }
 
 function getConfigInternal_() {
@@ -99,6 +104,13 @@ function getConfigInternal_() {
   for (var key in CONFIG_DEFAULTS) {
     var val = props.getProperty(key);
     config[key] = val !== null ? val : CONFIG_DEFAULTS[key];
+  }
+  if (!config.apiKey) {
+    // e.g. the widget's first request after upgrading, before the sheet is reopened
+    try {
+      migrateApiKeyStorage_();
+      config.apiKey = props.getProperty('apiKey') || '';
+    } catch (err) { /* non-critical */ }
   }
   return config;
 }

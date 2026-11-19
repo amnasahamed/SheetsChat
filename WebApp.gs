@@ -92,8 +92,9 @@ function handleWidgetRequest_(body) {
 }
 
 /**
- * Legacy transport kept for widget scripts cached by browsers before the
- * switch to fetch(). New widgets POST JSON to doPost directly.
+ * Fallback transport (hidden form POST into an iframe, answered via
+ * postMessage). The widget uses fetch() first and only falls back to this
+ * when fetch fails at the network level.
  */
 function serveIframeApi_(params) {
   var callbackId = sanitizeCallbackId_(params.callbackId || '');
@@ -350,7 +351,23 @@ function buildWidgetJS(config) {
     'var timer=setTimeout(function(){if(ctl)ctl.abort();},60000);' +
     'fetch(C.endpoint,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow",signal:ctl?ctl.signal:undefined})' +
     '.then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})' +
-    '.then(function(d){clearTimeout(timer);ok(d||{});},function(e){clearTimeout(timer);fail(e);});' +
+    '.then(function(d){clearTimeout(timer);ok(d||{});},function(e){clearTimeout(timer);' +
+    // Network-level failure (not a timeout): retry once over the legacy iframe transport.
+    'if(e&&e.name!=="AbortError"){iframeRequest(payload,ok,fail);}else{fail(e);}});' +
+    '}' +
+    'function iframeRequest(payload,ok,fail){' +
+    'var cb="cb_iframe_"+Date.now()+"_"+Math.random().toString(36).slice(2);' +
+    'var done=false;var frame,form;' +
+    'var timer=setTimeout(function(){if(!done){cleanup();fail(new Error("Request timed out"));}},60000);' +
+    'function onMessage(ev){var data=ev.data||{};if(data.source==="SheetsChat"&&data.callbackId===cb){done=true;cleanup();ok(data.result||{});}}' +
+    'function cleanup(){clearTimeout(timer);window.removeEventListener("message",onMessage);if(form&&form.parentNode){form.parentNode.removeChild(form);}if(frame&&frame.parentNode){frame.parentNode.removeChild(frame);}}' +
+    'window.addEventListener("message",onMessage);' +
+    'frame=D.createElement("iframe");frame.name=cb;frame.style.display="none";' +
+    'form=D.createElement("form");form.method="POST";form.action=C.endpoint;form.target=cb;form.style.display="none";' +
+    'function add(name,value){var input=D.createElement("input");input.type="hidden";input.name=name;input.value=value;form.appendChild(input);}' +
+    'add("transport","iframe");add("callbackId",cb);add("payload",JSON.stringify(payload));' +
+    'D.body.appendChild(frame);D.body.appendChild(form);' +
+    'try{form.submit();}catch(e){cleanup();fail(e);}' +
     '}' +
 
     // Toggle panel

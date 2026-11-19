@@ -26,7 +26,7 @@
     <li><strong>Chat logs</strong> — Timestamp, session ID, user messages, AI responses, model used, latency (stored in a "ChatbotLogs" sheet)</li>
     <li><strong>Lead captures</strong> — Name, email, phone, source (stored in a "Leads" sheet)</li>
     <li><strong>Knowledge base entries</strong> — Category, question, answer, keywords (stored in a "KnowledgeBase" sheet)</li>
-    <li><strong>API keys</strong> — Your AI provider API key (stored securely in Google ScriptProperties&#8482;)</li>
+    <li><strong>API keys</strong> — Your AI provider API key (stored in the spreadsheet&#8217;s Apps Script&#8482; document properties, scoped to that spreadsheet)</li>
   </ul>
 
   <h2>How We Store Data</h2>
@@ -63,7 +63,7 @@
   </ul>
 
   <h2>Security</h2>
-  <p>API keys are stored in Google ScriptProperties&#8482;, which is only accessible by the Apps Script&#8482; runtime — not by users who open the spreadsheet. We implement rate limiting to prevent abuse of the widget endpoint.</p>
+  <p>API keys are stored in the spreadsheet&#8217;s Apps Script&#8482; document properties. They are scoped to that one spreadsheet, are not shown in its cells, and are only readable through the Apps Script&#8482; runtime. We implement rate limiting to prevent abuse of the widget endpoint.</p>
 
   <h2>Changes</h2>
   <p>We may update this privacy policy from time to time. Changes will be reflected in the "Last updated" date above.</p>

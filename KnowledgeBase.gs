@@ -4,7 +4,7 @@ var KB_SHEET_NAME = 'KnowledgeBase';
 var KB_CACHE_KEY = 'kb_data_rows';
 var KB_CACHE_TTL = 300; // 5 minutes
 var KB_TOP_K = 3;
-var KB_MIN_SCORE = 3;
+var KB_MIN_SCORE = 1; // any exact answer-word match qualifies; ranking does the rest
 
 /**
  * Creates the KnowledgeBase sheet if it doesn't exist.
@@ -214,28 +214,33 @@ function _computeRelevance(userWords, entry) {
 }
 
 /**
- * KB rows, cached per document. Uses the document cache: in a Marketplace
- * add-on the script cache is shared across every install.
+ * KB rows, cached per spreadsheet. The script cache is shared by every
+ * add-on install, so the key includes the spreadsheet ID.
  */
 function getKBCache_() {
   try {
-    return CacheService.getDocumentCache(); // null outside a document: just don't cache
+    return CacheService.getScriptCache();
   } catch (e) {
     return null;
   }
 }
 
+/** Cache key namespaced by spreadsheet so add-on installs never share KB data. */
+function kbCacheKey_() {
+  return KB_CACHE_KEY + '_' + SpreadsheetApp.getActiveSpreadsheet().getId();
+}
+
 function getKBCachedData_() {
   var cache = getKBCache_();
   if (cache) {
-    var cached = cache.get(KB_CACHE_KEY);
+    var cached = cache.get(kbCacheKey_());
     if (cached) {
       try { return JSON.parse(cached); } catch (e) { /* fall through */ }
     }
   }
   var rows = readKBSheet_();
   if (cache) {
-    try { cache.put(KB_CACHE_KEY, JSON.stringify(rows), KB_CACHE_TTL); } catch (e) { /* too large: non-critical */ }
+    try { cache.put(kbCacheKey_(), JSON.stringify(rows), KB_CACHE_TTL); } catch (e) { /* too large: non-critical */ }
   }
   return rows;
 }
@@ -246,6 +251,6 @@ function getKBCachedData_() {
 function invalidateKBCache_() {
   var cache = getKBCache_();
   if (cache) {
-    try { cache.remove(KB_CACHE_KEY); } catch (e) { /* non-critical */ }
+    try { cache.remove(kbCacheKey_()); } catch (e) { /* non-critical */ }
   }
 }
