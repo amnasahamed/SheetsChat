@@ -5,11 +5,11 @@ function corsResponse(content) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-var RATE_LIMIT_MAX = 30;
+var RATE_LIMIT_MAX = 30;      // per visitor session
 var RATE_LIMIT_WINDOW = 60;
-var MAX_MESSAGE_LENGTH = 4000;
-var MAX_HISTORY_ENTRIES = 20;
-var MAX_HISTORY_ENTRY_LENGTH = 2000;
+var ORIGIN_RATE_LIMIT_MAX = 300; // per website, across all visitors
+var ORIGIN_RATE_LIMIT_WINDOW = 60;
+var MAX_WIDGET_HISTORY = 10;
 
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
@@ -53,7 +53,7 @@ function doPost(e) {
 
 function handleWidgetRequest_(body) {
   body = body || {};
-  var sessionId = body.sessionId || body.session_id || 'anon';
+  var sessionId = String(body.sessionId || body.session_id || 'anon').substring(0, 80);
 
   // Session-based rate limit
   if (!checkRateLimit(sessionId)) {
@@ -63,7 +63,7 @@ function handleWidgetRequest_(body) {
 
   // Secondary rate limit by origin fingerprint to prevent session rotation abuse
   var fpKey = buildFingerprintKey_(body);
-  if (fpKey && !checkRateLimit(fpKey, 60, 120)) {
+  if (fpKey && !checkRateLimit(fpKey, ORIGIN_RATE_LIMIT_MAX, ORIGIN_RATE_LIMIT_WINDOW)) {
     console.error('Rate limit hit for fingerprint: ' + fpKey);
     return { error: 'Rate limited. Please wait a moment and try again.' };
   }
@@ -86,24 +86,15 @@ function handleWidgetRequest_(body) {
     return { error: 'Message too long (max ' + MAX_MESSAGE_LENGTH + ' characters).' };
   }
 
-  var history = sanitizeWidgetHistory_(body.history);
-  return handleChat(body.message, history);
+  // Widget visitors get a shorter window than the sidebar (most recent turns only).
+  var history = Array.isArray(body.history) ? body.history.slice(-MAX_WIDGET_HISTORY) : [];
+  return handleChat(body.message, history, 'w_' + sessionId);
 }
 
-function sanitizeWidgetHistory_(history) {
-  var clean = [];
-  if (history && Array.isArray(history)) {
-    for (var i = 0; i < Math.min(history.length, MAX_HISTORY_ENTRIES); i++) {
-      var h = history[i];
-      if (h && typeof h.content === 'string' && h.content.length <= MAX_HISTORY_ENTRY_LENGTH) {
-        var role = h.role === 'assistant' ? 'assistant' : 'user';
-        clean.push({ role: role, content: sanitizeHtml(h.content) });
-      }
-    }
-  }
-  return clean;
-}
-
+/**
+ * Legacy transport kept for widget scripts cached by browsers before the
+ * switch to fetch(). New widgets POST JSON to doPost directly.
+ */
 function serveIframeApi_(params) {
   var callbackId = sanitizeCallbackId_(params.callbackId || '');
   if (!callbackId) {
@@ -130,25 +121,10 @@ function serveIframeApi_(params) {
     callbackId: callbackId,
     result: result
   };
-  // Determine targetOrigin — never use wildcard "*"
-  var targetOrigin = 'https://script.google.com';
-  try {
-    var config = getConfigInternal_();
-    var allowedDomains = (config.allowedDomains || '').trim();
-    if (allowedDomains) {
-      var firstDomain = allowedDomains.split(',')[0].trim();
-      if (firstDomain && /^https?:\/\//.test(firstDomain)) {
-        targetOrigin = firstDomain;
-      } else if (firstDomain) {
-        targetOrigin = 'https://' + firstDomain;
-      }
-    } else if (body.origin) {
-      // No domains configured — use the request's own origin
-      targetOrigin = body.origin;
-    }
-  } catch (e) {
-    if (body.origin) { targetOrigin = body.origin; }
-  }
+  // Reply only to the requesting page's origin (never "*"). handleWidgetRequest_
+  // has already checked it against allowedDomains, so any allowed domain or
+  // subdomain works, not just the first one configured.
+  var targetOrigin = normalizeOrigin_(body.origin) || 'https://script.google.com';
   var html = '<!doctype html><html><body><script>' +
     'parent.postMessage(' + safeJsonForScript_(message) + ',' + JSON.stringify(targetOrigin) + ');' +
     '</script></body></html>';
@@ -179,10 +155,11 @@ function serveWidget() {
 }
 
 function buildWidgetJS(config) {
-  var suggestions = (config.suggestedQuestions || '').split(',').filter(function(s){return s.trim();});
+  var suggestions = parseSuggestions_(config.suggestedQuestions);
   var c = {
     botName: config.botName || 'Assistant',
-    botColor: config.botColor || '#3B82F6',
+    // Interpolated into CSS below, so only a strict hex color is allowed.
+    botColor: /^#[0-9A-Fa-f]{6}$/.test(config.botColor || '') ? config.botColor : '#3B82F6',
     endpoint: '',
     welcomeMessage: config.welcomeMessage || '',
     suggestions: suggestions,
@@ -307,9 +284,12 @@ function buildWidgetJS(config) {
 
     // State
     'var isOpen=false;var H=[];var sending=false;var leadDone=false;var lastFailed="";var SID="anon";var WO=window.location?window.location.origin:"";' +
-    'try{SID=sessionStorage.getItem("cb_sid")||("s_"+Math.random().toString(36).slice(2)+"_"+Date.now().toString(36));sessionStorage.setItem("cb_sid",SID);}catch(e){SID="s_"+Math.random().toString(36).slice(2);}' +
-    'try{H=JSON.parse(sessionStorage.getItem("cb_h")||"[]");}catch(e){}' +
-    'try{leadDone=!!sessionStorage.getItem("cb_lead");}catch(e){}' +
+    'function sGet(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}' +
+    'function sSet(k,v){try{sessionStorage.setItem(k,v);}catch(e){}}' +
+    'SID=sGet("cb_sid")||("s_"+Math.random().toString(36).slice(2)+"_"+Date.now().toString(36));sSet("cb_sid",SID);' +
+    'try{H=JSON.parse(sGet("cb_h")||"[]");if(!Array.isArray(H))H=[];}catch(e){H=[];}' +
+    'leadDone=!!sGet("cb_lead");' +
+    'function saveH(){if(H.length>40)H=H.slice(-40);sSet("cb_h",JSON.stringify(H));}' +
 
     // Restore history
     'function restoreHistory(){' +
@@ -329,7 +309,7 @@ function buildWidgetJS(config) {
     'var m=H[i];' +
     'var b=D.createElement("div");' +
     'b.className=m.role==="user"?"cb-msg cb-user":"cb-msg cb-bot";' +
-    'b.innerHTML=m.role==="bot"?linkify(m.content):m.content.replace(/&/g,"\\u0026amp;").replace(/</g,"\\u0026lt;").replace(/>/g,"\\u0026gt;");' +
+    'b.innerHTML=m.role==="user"?esc(String(m.content||"")):linkify(String(m.content||""));' +
     'msgs.appendChild(b);' +
     '}}' +
     'scrollDown();' +
@@ -348,29 +328,29 @@ function buildWidgetJS(config) {
     '}' +
 
     // Linkify URLs and emails in bot messages
+    // (single pass, so an email inside a URL is not wrapped twice)
+    'function esc(t){return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function linkify(t){' +
-    't=t.replace(/&/g,"\\u0026amp;").replace(/</g,"\\u0026lt;").replace(/>/g,"\\u0026gt;");' +
-    't=t.replace(/(https?:\\/\\/[^\\s<]+)/g,"\\u003ca href=\\u0022$1\\u0022 target=\\u0022_blank\\u0022 rel=\\u0022noopener\\u0022\\u003e$1\\u003c/a\\u003e");' +
-    't=t.replace(/([\\w.-]+@[\\w.-]+\\.\\w{2,})/g,"\\u003ca href=\\u0022mailto:$1\\u0022\\u003e$1\\u003c/a\\u003e");' +
-    'return t;' +
+    'var re=/(https?:\\/\\/[^\\s<>"]+[^\\s<>".,;:!?)\\]])|([\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+)/g;' +
+    'var out="",last=0,m;' +
+    'while((m=re.exec(t))){out+=esc(t.slice(last,m.index));' +
+    'if(m[1]){out+="<a href=\\""+esc(m[1])+"\\" target=\\"_blank\\" rel=\\"noopener noreferrer\\">"+esc(m[1])+"</a>";}' +
+    'else{out+="<a href=\\"mailto:"+esc(m[2])+"\\">"+esc(m[2])+"</a>";}' +
+    'last=re.lastIndex;}' +
+    'return out+esc(t.slice(last));' +
     '}' +
 
     'function scrollDown(){msgs.scrollTop=msgs.scrollHeight;}' +
     'function showTyping(){typ.style.display="flex";scrollDown();}' +
     'function hideTyping(){typ.style.display="none";}' +
+    // POST JSON as text/plain (a "simple" request: no CORS preflight). Apps Script
+    // answers with a redirect to a googleusercontent URL that allows any origin.
     'function request(payload,ok,fail){' +
-    'var cb="cb_iframe_"+Date.now()+"_"+Math.random().toString(36).slice(2);' +
-    'var done=false;' +
-    'var timer=setTimeout(function(){if(!done){cleanup();fail(new Error("Request timed out"));}},30000);' +
-    'function onMessage(ev){var data=ev.data||{};if(data.source==="SheetsChat"&&data.callbackId===cb){done=true;cleanup();ok(data.result||{});}}' +
-    'function cleanup(){clearTimeout(timer);window.removeEventListener("message",onMessage);if(form&&form.parentNode){form.parentNode.removeChild(form);}if(frame&&frame.parentNode){frame.parentNode.removeChild(frame);}}' +
-    'window.addEventListener("message",onMessage);' +
-    'var frame=D.createElement("iframe");frame.name=cb;frame.style.display="none";' +
-    'var form=D.createElement("form");form.method="POST";form.action=C.endpoint;form.target=cb;form.style.display="none";' +
-    'function add(name,value){var input=D.createElement("input");input.type="hidden";input.name=name;input.value=value;form.appendChild(input);}' +
-    'add("transport","iframe");add("callbackId",cb);add("payload",JSON.stringify(payload));' +
-    'D.body.appendChild(frame);D.body.appendChild(form);' +
-    'try{form.submit();}catch(e){cleanup();fail(e);}' +
+    'var ctl=window.AbortController?new AbortController():null;' +
+    'var timer=setTimeout(function(){if(ctl)ctl.abort();},60000);' +
+    'fetch(C.endpoint,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload),redirect:"follow",signal:ctl?ctl.signal:undefined})' +
+    '.then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})' +
+    '.then(function(d){clearTimeout(timer);ok(d||{});},function(e){clearTimeout(timer);fail(e);});' +
     '}' +
 
     // Toggle panel
@@ -397,7 +377,7 @@ function buildWidgetJS(config) {
     'if(!n||!em){alert("Please enter name and email.");return;}' +
     'request({type:"lead",name:n,email:em,source:"widget",sessionId:SID,origin:WO},function(d){' +
     'if(d.error){alert(d.error);return;}' +
-    'leadDone=true;try{sessionStorage.setItem("cb_lead","1");}catch(e){}' +
+    'leadDone=true;sSet("cb_lead","1");' +
     'lf.style.display="none";msgs.style.display="flex";inpArea.style.display="flex";' +
     'restoreHistory();' +
     '},function(){alert("Connection error. Please try again.");});' +
@@ -414,21 +394,21 @@ function buildWidgetJS(config) {
     'H.push({role:"user",content:txt});' +
     'showTyping();' +
     'var priorH=[];' +
-    'var start=Math.max(0,H.length-7);' +
-    'for(var i=start;i<H.length-1;i++){priorH.push({role:H[i].role,content:String(H[i].content||"").slice(0,800)});}' +
+    'var start=Math.max(0,H.length-11);' +
+    'for(var i=start;i<H.length-1;i++){priorH.push({role:H[i].role,content:String(H[i].content||"").slice(0,1500)});}' +
 
     'request({message:txt,history:priorH,sessionId:SID,origin:WO},function(d){' +
     'hideTyping();' +
-    'if(d.error){H.pop();lastFailed=txt;appendMsg("error","Error: "+d.error);}' +
+    'if(d.error||typeof d.response!=="string"){H.pop();lastFailed=txt;appendMsg("error",d.error||"Something went wrong. Please try again.");}' +
     'else{lastFailed="";appendMsg("bot",d.response);H.push({role:"assistant",content:d.response});}' +
-    'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
+    'saveH();' +
     'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
     '},function(e){' +
     'hideTyping();' +
     'H.pop();' +
     'lastFailed=txt;' +
     'appendMsg("error","Connection error. Please try again.");' +
-    'sessionStorage.setItem("cb_h",JSON.stringify(H));' +
+    'saveH();' +
     'sending=false;sendBtn.disabled=false;sendBtn.style.opacity="";' +
     '});' +
     '}' +
@@ -453,16 +433,38 @@ function checkRateLimit(key, maxRequests, windowSec) {
   if (!key) key = 'anonymous';
   maxRequests = maxRequests || RATE_LIMIT_MAX;
   windowSec = windowSec || RATE_LIMIT_WINDOW;
-  key = String(key).replace(/[^A-Za-z0-9_-]/g, '').substring(0, 80) || 'anonymous';
-  var cacheKey = 'rl_' + key;
+  key = String(key).replace(/[^A-Za-z0-9_.-]/g, '').substring(0, 80) || 'anonymous';
+  // Fixed window: the bucket id is part of the key. (Re-putting a single key
+  // refreshed its TTL on every hit, so a steady stream of requests never let
+  // the counter expire and eventually locked everyone out.)
+  var bucket = Math.floor(new Date().getTime() / (windowSec * 1000));
+  var cacheKey = 'rl_' + key + '_' + windowSec + '_' + bucket;
   var cache = CacheService.getScriptCache();
-  var countStr = cache.get(cacheKey);
-  var count = countStr ? parseInt(countStr, 10) : 0;
-  if (count >= maxRequests) {
-    return false;
+  var lock = LockService.getScriptLock();
+  var locked = false;
+  try { locked = lock.tryLock(2000); } catch (e) { /* proceed without lock */ }
+  try {
+    var count = parseInt(cache.get(cacheKey) || '0', 10) || 0;
+    if (count >= maxRequests) {
+      return false;
+    }
+    cache.put(cacheKey, String(count + 1), windowSec + 5);
+    return true;
+  } finally {
+    if (locked) lock.releaseLock();
   }
-  cache.put(cacheKey, String(count + 1), windowSec);
-  return true;
+}
+
+/** Returns "scheme://host[:port]" for a client-supplied origin, or '' if invalid. */
+function normalizeOrigin_(origin) {
+  var m = /^(https?):\/\/([a-z0-9.-]+)(:\d{1,5})?(?:[\/?#]|$)/i.exec(String(origin || '').trim());
+  return m ? (m[1] + '://' + m[2] + (m[3] || '')).toLowerCase() : '';
+}
+
+/** Lowercase host without scheme, path or port. */
+function hostOf_(value) {
+  return String(value || '').trim().toLowerCase()
+    .replace(/^[a-z]+:\/\//, '').replace(/[\/?#].*$/, '').replace(/:\d+$/, '');
 }
 
 /**
@@ -470,12 +472,8 @@ function checkRateLimit(key, maxRequests, windowSec) {
  * Uses origin + a hash of the session pattern to detect rotation abuse.
  */
 function buildFingerprintKey_(body) {
-  var origin = String(body.origin || '').trim().toLowerCase();
-  if (!origin) return '';
-  // Simple fingerprint: "fp_" prefix + origin host
-  var host = origin.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
-  if (!host) return '';
-  return 'fp_' + host;
+  var host = hostOf_(body.origin);
+  return host ? 'fp_' + host : '';
 }
 
 /**
@@ -491,20 +489,16 @@ function isOriginAllowed_(origin) {
   // No origin provided but config exists = block
   if (!origin) return false;
 
-  var domains = allowedDomains.split(',').map(function(d) { return d.trim().toLowerCase(); });
-  try {
-    var originHost = origin.toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
-    for (var i = 0; i < domains.length; i++) {
-      var domain = domains[i].replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-      if (!domain) continue;
-      // Exact match or subdomain match
-      if (originHost === domain || originHost.endsWith('.' + domain)) {
-        return true;
-      }
+  var originHost = hostOf_(normalizeOrigin_(origin));
+  if (!originHost) return false;
+  var domains = allowedDomains.split(/[,\s]+/);
+  for (var i = 0; i < domains.length; i++) {
+    var domain = hostOf_(domains[i]).replace(/^\*\./, '');
+    if (!domain) continue;
+    // Exact match or subdomain match
+    if (originHost === domain || originHost.slice(-(domain.length + 1)) === '.' + domain) {
+      return true;
     }
-  } catch (e) {
-    // On parse error, deny
-    return false;
   }
   return false;
 }
